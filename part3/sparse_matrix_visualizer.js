@@ -81,7 +81,7 @@ function generateNaiveSteps() {
       `外层循环变量推进到 col = ${col}。接下来要把三元组表的全部 9 个项目逐一检查，判断每项的列号是否等于 ${col}。这正是"普通"转置的代价——无论该列实际有几个非零元素，都要完整扫描一遍，每列的代价都是 O(terms)。`,
       'transpose_naive', slots,
       { matrixCells: colCells, currentCol: col },
-      { col, '内层循环': 'p = 1..9', '已写结果数': q },
+      { col, '内层遍历 p': 'p = 1..9', '已写结果数': q },
       { naiveState: { col, p: '遍历中', q } }
     ));
 
