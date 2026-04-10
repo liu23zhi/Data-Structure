@@ -94,7 +94,7 @@ function mkStep(algorithm, phase, title, desc, fn, variables, highlight, algoSta
 
 // ============================================================
 //  ALGORITHM 1:  block_search_sequential_index
-//  逻辑：顺序扫描索引表 → 找块 → 块内顺序查找
+//  Logic: sequential scan of index table → locate block → sequential search within block
 // ============================================================
 function generateSequentialSteps() {
   const steps = [];
@@ -255,7 +255,7 @@ function generateSequentialSteps() {
 
 // ============================================================
 //  ALGORITHM 2:  block_search_binary_index
-//  逻辑：折半查找索引表 → 找块 → 块内顺序查找
+//  Logic: binary search of index table → locate block → sequential search within block
 // ============================================================
 function generateBinarySteps() {
   const steps = [];
@@ -465,7 +465,7 @@ function generateBinarySteps() {
 
 // ============================================================
 //  ALGORITHM 3:  linked_block_search
-//  逻辑：顺序扫描索引 → 找块 → 遍历单链表查找
+//  Logic: sequential scan of index table → locate block → traverse singly-linked list within block
 // ============================================================
 function generateLinkedSteps() {
   const steps = [];
@@ -610,7 +610,7 @@ function generateLinkedSteps() {
   }
 
   // ── Summary ─────────────────────────────────────────────
-  const logicFoundPos = found_pos >= 0 ? found_pos - block_id * BLOCK_SIZE + block_id * BLOCK_SIZE + 1 : -1;
+  const logicFoundPos = found_pos >= 0 ? found_pos + 1 : -1;
   steps.push(mkStep(
     'linked', '完成',
     found_pos >= 0
@@ -668,9 +668,9 @@ function initApp() {
   ['sequential', 'binary', 'linked'].forEach(algo => {
     const steps = APP.allSteps[algo];
     steps.forEach((s, i) => {
-      // Steps are frozen, so we assign via Object.defineProperty trick — or we
-      // just use a wrapper. Actually we reassigned after freeze which won't work.
-      // Instead we make steps mutable objects (not frozen after stamping).
+      // Overwrite each step with a new object that includes the stamped fields.
+      // Object.assign creates a fresh copy so the original (partially frozen) object
+      // is not mutated, and stepIndex/totalSteps are cleanly added.
       s = APP.allSteps[algo][i] = Object.assign({}, s, {
         stepIndex:  i,
         totalSteps: steps.length
