@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>有向图路径搜索可视化</title>
+  <link rel="stylesheet" href="graph_path_visualizer.css">
+</head>
+<body>
+
+<!-- ===== 1. HEADER ===== -->
+<header id="app-header">
+  <div class="header-content">
+    <h1>有向图路径搜索可视化</h1>
+    <p class="header-subtitle">part2/graph_path.c 教学演示 &nbsp;·&nbsp; 6 顶点，9 条有向边，从顶点 5 出发到顶点 2</p>
+    <div class="header-meta">
+      <span id="algo-badge" class="algo-badge">全部简单路径（DFS）</span>
+      <span id="algo-brief" class="algo-brief">邻接表 DFS 回溯，O(V+E) 每条路径</span>
+    </div>
+  </div>
+</header>
+
+<!-- ===== 2. CONTROLS ===== -->
+<section id="controls">
+  <div class="controls-inner">
+    <div class="algo-tabs">
+      <button class="tab-btn active" data-algo="dfs-all">全部简单路径(DFS)</button>
+      <button class="tab-btn" data-algo="dfs-len3">长度为 3 的路径</button>
+      <button class="tab-btn" data-algo="bfs-list">BFS 最短路径(邻接表)</button>
+      <button class="tab-btn" data-algo="bfs-matrix">BFS 最短路径(邻接矩阵)</button>
+    </div>
+    <div class="playback-controls">
+      <button id="btn-reset" class="ctrl-btn">↺ 重置</button>
+      <button id="btn-prev" class="ctrl-btn" disabled>◀ 上一步</button>
+      <button id="btn-play" class="ctrl-btn primary">▶ 播放</button>
+      <button id="btn-next" class="ctrl-btn">下一步 ▶</button>
+      <select id="speed-select">
+        <option value="2200">慢速</option>
+        <option value="1100" selected>中速</option>
+        <option value="420">快速</option>
+      </select>
+    </div>
+  </div>
+</section>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main id="main-content">
+
+  <!-- ===== 3. DATA DISPLAY ===== -->
+  <section id="data-display">
+
+    <!-- Left: SVG graph -->
+    <div class="data-panel" id="graph-panel">
+      <h3 class="panel-title" id="graph-panel-title">有向图 G（6 顶点，9 条有向边）</h3>
+      <div id="graph-svg-container"></div>
+      <div id="graph-legend" class="graph-legend">
+        <span class="legend-item"><span class="legend-dot src"></span>起点(5)</span>
+        <span class="legend-item"><span class="legend-dot dst"></span>终点(2)</span>
+        <span class="legend-item"><span class="legend-dot active"></span>当前顶点</span>
+        <span class="legend-item"><span class="legend-dot inpath"></span>路径中</span>
+        <span class="legend-item"><span class="legend-dot visited"></span>已访问</span>
+        <span class="legend-item"><span class="legend-dot found"></span>找到路径</span>
+        <span class="legend-item"><span class="legend-dot queue"></span>队列中</span>
+      </div>
+    </div>
+
+    <!-- Right: adjacency list or matrix -->
+    <div class="data-panel" id="adj-structure-panel">
+      <h3 class="panel-title" id="adj-panel-title">邻接表（adj_list）</h3>
+      <div id="adj-structure-content"></div>
+    </div>
+
+    <!-- Bottom full-width: found paths -->
+    <div class="data-panel" id="found-paths-panel">
+      <h3 class="panel-title" id="found-paths-title">已找到的路径</h3>
+      <div id="found-paths-content">
+        <p class="empty-notice">暂未找到路径，请开始演示。</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ===== 4. STEP EXPLANATION ===== -->
+  <section id="step-explanation">
+    <div class="step-header">
+      <div>
+        <div id="step-phase-tag" class="step-phase-tag">初始化</div>
+        <h3 id="step-title">—</h3>
+      </div>
+      <span id="step-counter" class="step-counter">步骤 0 / 0</span>
+    </div>
+    <p id="step-description" class="step-description">请选择算法并点击播放，或逐步点击"下一步"查看算法执行过程。</p>
+    <div class="step-meta">
+      <span class="meta-label">C 函数：</span>
+      <code id="step-function">—</code>
+    </div>
+    <div id="step-variables" class="step-variables"></div>
+  </section>
+
+  <!-- ===== 5. ALGORITHM STATE PANEL ===== -->
+  <section id="algorithm-state">
+    <h3 class="section-title">算法状态面板</h3>
+    <div id="state-content">
+      <p style="color:#999;font-size:0.9rem;">开始演示后，此处将显示算法内部变量的实时状态。</p>
+    </div>
+  </section>
+
+  <!-- ===== 6. COMPLEXITY TABLE ===== -->
+  <section id="complexity">
+    <h3 class="section-title">四种算法复杂度对比</h3>
+    <table class="complexity-table">
+      <thead>
+        <tr>
+          <th>算法</th>
+          <th>时间复杂度</th>
+          <th>空间复杂度（辅助）</th>
+          <th>本例估算（V=6，E=9）</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>DFS 全部简单路径</strong><br><small>dfs()，limit=0，邻接表</small></td>
+          <td><code>O(V! × (V+E))</code></td>
+          <td><code>O(V)</code>（递归栈 + visited[]）</td>
+          <td>共 6 条路径，最长深度 4</td>
+          <td>回溯枚举所有路径，visited[] 防止环路</td>
+        </tr>
+        <tr>
+          <td><strong>DFS 限长路径</strong><br><small>dfs()，limit=3，邻接表</small></td>
+          <td><code>O(V<sup>k</sup>)</code>（k=limit）</td>
+          <td><code>O(k)</code>（深度剪枝）</td>
+          <td>共 2 条长度为 3 的路径</td>
+          <td>depth ≥ limit 且未到终点则剪枝，大幅减少搜索</td>
+        </tr>
+        <tr>
+          <td><strong>BFS 最短路径（邻接表）</strong><br><small>bfs_shortest()，use_matrix=0</small></td>
+          <td><code>O(V + E)</code></td>
+          <td><code>O(V)</code>（队列 + dist[] + parent[]）</td>
+          <td>入队 5 次，出队 4 次即找到</td>
+          <td>BFS 保证首次到达终点即为最短路径</td>
+        </tr>
+        <tr>
+          <td><strong>BFS 最短路径（邻接矩阵）</strong><br><small>bfs_shortest()，use_matrix=1</small></td>
+          <td><code>O(V<sup>2</sup>)</code></td>
+          <td><code>O(V)</code>（队列 + dist[] + parent[]）</td>
+          <td>每次出队检查全部 6 列，共约 18 次检查</td>
+          <td class="speedup">矩阵存储无需链表指针，但遍历代价为 O(V²)</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.8rem;color:#888;margin-top:10px;">
+      ※ 本例最短路径为 5→1→2（长度=2）。邻接表 BFS 只遍历实际存在的边，效率更高；邻接矩阵 BFS 每次出队需扫描整行（O(V)），适合密集图。DFS 需回溯全部分支，路径数随深度指数级增长。
+    </p>
+  </section>
+
+</main>
+
+<script src="graph_path_visualizer.js"></script>
+</body>
+</html>
