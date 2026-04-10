@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分块查找算法可视化</title>
+  <link rel="stylesheet" href="block_search_visualizer.css">
+</head>
+<body>
+
+<!-- ===== 1. HEADER ===== -->
+<header id="app-header">
+  <div class="header-content">
+    <h1>分块查找算法可视化</h1>
+    <p class="header-subtitle">part1/block_search.c 教学演示 &nbsp;·&nbsp; 25个元素，5块，每块5个，查找关键字 46</p>
+    <div class="header-meta">
+      <span id="algo-badge" class="algo-badge">顺序索引分块查找</span>
+      <span id="algo-brief" class="algo-brief">索引表顺序查找 + 块内顺序查找</span>
+    </div>
+  </div>
+</header>
+
+<!-- ===== 2. CONTROLS ===== -->
+<section id="controls">
+  <div class="controls-inner">
+    <div class="algo-tabs">
+      <button class="tab-btn active" data-algo="sequential">顺序索引查找</button>
+      <button class="tab-btn" data-algo="binary">折半索引查找</button>
+      <button class="tab-btn" data-algo="linked">链式分块查找</button>
+    </div>
+    <div class="playback-controls">
+      <button id="btn-reset" class="ctrl-btn">↺ 重置</button>
+      <button id="btn-prev" class="ctrl-btn" disabled>◀ 上一步</button>
+      <button id="btn-play" class="ctrl-btn primary">▶ 播放</button>
+      <button id="btn-next" class="ctrl-btn">下一步 ▶</button>
+      <select id="speed-select">
+        <option value="2200">慢速</option>
+        <option value="1100" selected>中速</option>
+        <option value="420">快速</option>
+      </select>
+    </div>
+  </div>
+</section>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main id="main-content">
+
+  <!-- ===== 3. DATA DISPLAY ===== -->
+  <section id="data-display">
+
+    <!-- Array visualization panel -->
+    <div class="data-panel" id="array-panel">
+      <h3 class="panel-title">顺序表（25个元素，5块，每块5个）</h3>
+      <div id="array-visual"></div>
+    </div>
+
+    <!-- Index table panel -->
+    <div class="data-panel" id="index-panel">
+      <h3 class="panel-title">索引表（5项）</h3>
+      <div id="index-table-visual"></div>
+    </div>
+
+  </section>
+
+  <!-- ===== 4. STEP EXPLANATION ===== -->
+  <section id="step-explanation">
+    <div class="step-header">
+      <div>
+        <div id="step-phase-tag" class="step-phase-tag">初始化</div>
+        <h3 id="step-title">—</h3>
+      </div>
+      <span id="step-counter" class="step-counter">步骤 0 / 0</span>
+    </div>
+    <p id="step-description" class="step-description">请选择算法并点击播放，或逐步点击"下一步"查看算法执行过程。</p>
+    <div class="step-meta">
+      <span class="meta-label">C 函数：</span>
+      <code id="step-function">—</code>
+    </div>
+    <div id="step-variables" class="step-variables"></div>
+  </section>
+
+  <!-- ===== 5. ALGORITHM STATE PANEL ===== -->
+  <section id="algorithm-state">
+    <h3 class="section-title">算法状态面板</h3>
+    <div id="state-content">
+      <p style="color:#999;font-size:0.9rem;">开始演示后，此处将显示算法内部变量的实时状态。</p>
+    </div>
+  </section>
+
+  <!-- ===== 6. COMPLEXITY TABLE ===== -->
+  <section id="complexity">
+    <h3 class="section-title">三种分块查找算法复杂度对比</h3>
+    <table class="complexity-table">
+      <thead>
+        <tr>
+          <th>算法</th>
+          <th>索引查找复杂度</th>
+          <th>块内查找复杂度</th>
+          <th>总时间复杂度</th>
+          <th>空间复杂度</th>
+          <th>本例估算（n=25，b=5，s=5）</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>顺序索引分块查找</strong><br><small>block_search_sequential_index</small></td>
+          <td><code>O(b)</code></td>
+          <td><code>O(s)</code></td>
+          <td><code>O(b + s)</code></td>
+          <td><code>O(b)</code>（索引表）</td>
+          <td>最多 b+s = 5+5 = <strong>10</strong> 次比较</td>
+        </tr>
+        <tr>
+          <td><strong>折半索引分块查找</strong><br><small>block_search_binary_index</small></td>
+          <td><code>O(log b)</code></td>
+          <td><code>O(s)</code></td>
+          <td><code>O(log b + s)</code></td>
+          <td><code>O(b)</code>（索引表）</td>
+          <td>最多 ⌈log₂5⌉+5 = 3+5 = <strong>8</strong> 次比较</td>
+        </tr>
+        <tr>
+          <td><strong>链式分块查找</strong><br><small>linked_block_search</small></td>
+          <td><code>O(b)</code></td>
+          <td><code>O(s)</code></td>
+          <td><code>O(b + s)</code></td>
+          <td><code>O(n)</code>（链表指针）</td>
+          <td>最多 b+s = 5+5 = <strong>10</strong> 次比较，但需要额外 n 个链表结点</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.8rem;color:#888;margin-top:10px;">
+      ※ b = 块数 = √n 时平均查找性能最优。本例 b=5，s=5，总顺序查找平均次数 ≈ (b+1)/2 + (s+1)/2 = 3 + 3 = 6 次。折半索引进一步将索引查找降为 O(log b)。链式存储允许块内元素动态插删，但空间开销更大。
+    </p>
+  </section>
+
+</main>
+
+<script src="block_search_visualizer.js"></script>
+</body>
+</html>
