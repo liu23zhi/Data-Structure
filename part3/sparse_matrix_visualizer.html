@@ -20,6 +20,46 @@
   </div>
 </header>
 
+<!-- ===== DATA SOURCE PANEL ===== -->
+<section id="data-source">
+  <div class="source-inner">
+    <h3 class="section-title">矩阵数据来源</h3>
+    <div class="source-options">
+      <label class="source-option">
+        <input type="radio" name="data-source" value="default" checked>
+        [1] 默认矩阵（6×6 示例稀疏矩阵）
+      </label>
+      <label class="source-option">
+        <input type="radio" name="data-source" value="manual">
+        [2] 手动输入矩阵
+      </label>
+      <label class="source-option">
+        <input type="radio" name="data-source" value="random">
+        [3] 随机生成矩阵（行列不超过15）
+      </label>
+    </div>
+
+    <div id="manual-input-panel" class="source-panel hidden">
+      <div class="manual-size-row">
+        <label>行数（1-15）：<input type="number" id="manual-rows" min="1" max="15" value="6"></label>
+        <label>列数（1-15）：<input type="number" id="manual-cols" min="1" max="15" value="6"></label>
+        <button id="btn-create-grid" class="ctrl-btn">创建输入网格</button>
+      </div>
+      <div id="matrix-input-grid"></div>
+      <button id="btn-apply-manual" class="ctrl-btn primary" style="margin-top:8px">✓ 应用矩阵</button>
+    </div>
+
+    <div id="random-input-panel" class="source-panel hidden">
+      <div class="random-params-row">
+        <label>行数（1-15）：<input type="number" id="random-rows" min="1" max="15" value="6"></label>
+        <label>列数（1-15）：<input type="number" id="random-cols" min="1" max="15" value="6"></label>
+        <label>稀疏度（%）：<input type="number" id="random-density" min="5" max="60" value="20"></label>
+        <button id="btn-generate-random" class="ctrl-btn primary">🎲 生成随机矩阵</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===== 2. CONTROLS ===== -->
 <section id="controls">
   <div class="controls-inner">
@@ -154,6 +194,32 @@
       ※ 当矩阵规模增大时，快速转置的优势更加显著。例如 cols=1000、terms=100000 时：
       普通转置需要 1 亿次比较，快速转置仅需约 10.1 万次操作，加速比约 <strong>990×</strong>。
     </p>
+  </section>
+
+  <!-- ===== 7. FILE I/O ===== -->
+  <section id="file-io">
+    <h3 class="section-title">文件输入输出</h3>
+    <div class="file-io-inner">
+      <div class="file-io-group">
+        <h4>📂 文件输入（part3-input.txt 格式）</h4>
+        <p class="file-format-hint">格式：第1行 "rows cols"，后续各行为矩阵行数据（空格分隔），行列均不超过15</p>
+        <input type="file" id="file-input" accept=".txt">
+        <div class="file-display">
+          <label>输入文件内容：</label>
+          <textarea id="input-display" rows="8" readonly placeholder="上传文件后此处显示内容…"></textarea>
+        </div>
+        <button id="btn-apply-file" class="ctrl-btn primary" disabled>✓ 应用文件矩阵</button>
+      </div>
+      <div class="file-io-group">
+        <h4>📄 文件输出（part3-output.txt 格式）</h4>
+        <button id="btn-generate-output" class="ctrl-btn">⚙ 生成输出</button>
+        <button id="btn-download-output" class="ctrl-btn" disabled>⬇ 下载 part3-output.txt</button>
+        <div class="file-display">
+          <label>输出结果（三种转置算法）：</label>
+          <textarea id="output-display" rows="12" readonly placeholder="点击"生成输出"后此处显示结果…"></textarea>
+        </div>
+      </div>
+    </div>
   </section>
 
 </main>

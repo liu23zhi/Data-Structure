@@ -488,3 +488,133 @@ body {
   border-radius: 3px;
 }
 .speedup { color: #2e7d32; font-weight: 700; }
+
+/* ===== DATA SOURCE PANEL ===== */
+#data-source {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 14px 24px;
+}
+#data-source .section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a237e;
+  margin: 0 0 10px;
+}
+.source-options {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.source-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.source-panel {
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+.source-panel.hidden { display: none; }
+.manual-size-row, .random-params-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.manual-size-row label, .random-params-row label {
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.manual-size-row input[type="number"],
+.random-params-row input[type="number"] {
+  width: 60px;
+  padding: 3px 6px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+.matrix-input-table {
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+.matrix-input-table td {
+  padding: 2px;
+}
+.matrix-cell-input {
+  width: 52px;
+  padding: 4px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+/* ===== FILE I/O PANEL ===== */
+#file-io {
+  background: #fff;
+  border-top: 2px solid #e0e0e0;
+  padding: 20px 24px;
+  margin-top: 16px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+#file-io .section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a237e;
+  margin: 0 0 14px;
+}
+.file-io-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 700px) {
+  .file-io-inner { grid-template-columns: 1fr; }
+}
+.file-io-group h4 {
+  font-size: 0.95rem;
+  margin: 0 0 6px;
+  color: #333;
+}
+.file-format-hint {
+  font-size: 0.78rem;
+  color: #888;
+  margin: 0 0 8px;
+}
+.file-display {
+  margin-top: 8px;
+}
+.file-display label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  display: block;
+  margin-bottom: 4px;
+}
+.file-display textarea {
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.78rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  box-sizing: border-box;
+  resize: vertical;
+  background: #fafafa;
+}
+.file-io-group input[type="file"] {
+  margin-bottom: 8px;
+}
+.file-io-group .ctrl-btn {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
