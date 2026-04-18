@@ -7,9 +7,9 @@
  *   3. 时间复杂度分析，与非快速算法对比
  *
  * I/O 模式：
- *   [1] 屏幕交互模式 — 命令行演示（默认矩阵或用户自定义输入）
+ *   [1] 屏幕交互模式 — 命令行演示（默认/手动/随机/预定义测试案例）
  *   [2] 文件交互模式 — 从 part3-input.txt 读取矩阵，结果写入 part3-output.txt
- *   [3] 测试用例模式 — 运行至少 4 个预定义测试案例
+ *   [3] 测试用例模式 — 运行 6 个预定义测试案例
  */
 
 #include <stdio.h>
@@ -22,6 +22,7 @@
    ───────────────────────────────────────────── */
 #define MAXTERMS 1000
 #define MAXDIM    50
+#define MAX_TEST_CASES 10
 
 #define INPUT_FILE  "part3-input.txt"
 #define OUTPUT_FILE "part3-output.txt"
@@ -58,6 +59,116 @@ static int default_arr[6][6] = {
     {15,  0,  0, -7,  0,  0},
     { 0,  0, -4,  0,  0,  0}
 };
+
+typedef struct {
+    int arr[MAXDIM][MAXDIM];
+    int rows, cols;
+    const char *desc;
+} MatrixCase;
+
+static void fill_default_matrix(int arr[][MAXDIM], int *rows, int *cols)
+{
+    memset(arr, 0, sizeof(int[MAXDIM][MAXDIM]));
+    for (int i = 0; i < 6; i++)
+        for (int j = 0; j < 6; j++)
+            arr[i][j] = default_arr[i][j];
+    *rows = 6;
+    *cols = 6;
+}
+
+static int random_non_zero_value(void)
+{
+    int v;
+    do {
+        v = (rand() % 19) - 9; /* [-9, 9] */
+    } while (v == 0);
+    return v;
+}
+
+static void generate_random_matrix(int arr[][MAXDIM], int rows, int cols, int sparsity_pct)
+{
+    memset(arr, 0, sizeof(int[MAXDIM][MAXDIM]));
+    if (rows <= 0 || cols <= 0) return;
+
+    int total = rows * cols;
+    int safe_sparsity = sparsity_pct;
+    if (safe_sparsity < 0) safe_sparsity = 0;
+    if (safe_sparsity > 100) safe_sparsity = 100;
+    /* 四舍五入（half-up）：与 JS 侧的 floor(x + 0.5) 保持一致 */
+    int nonzero_count = (total * (100 - safe_sparsity) + 50) / 100;
+    if (nonzero_count <= 0) return;
+    if (nonzero_count > total) nonzero_count = total;
+
+    int pos[MAXDIM * MAXDIM];
+    for (int i = 0; i < total; i++) pos[i] = i;
+    for (int i = total - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+        int t = pos[i];
+        pos[i] = pos[j];
+        pos[j] = t;
+    }
+
+    for (int k = 0; k < nonzero_count; k++) {
+        int idx = pos[k];
+        int r = idx / cols;
+        int c = idx % cols;
+        arr[r][c] = random_non_zero_value();
+    }
+}
+
+static int get_predefined_case_count(void)
+{
+    return 6;
+}
+
+static int load_predefined_case(int index, MatrixCase *out)
+{
+    memset(out->arr, 0, sizeof(out->arr));
+    switch (index) {
+        case 0: /* TC1 等价类 */
+            out->rows = 4; out->cols = 5;
+            out->arr[0][1] = 8;  out->arr[0][4] = -3;
+            out->arr[1][0] = 5;
+            out->arr[2][3] = 4;
+            out->arr[3][2] = 6;
+            out->desc = "TC1 等价类  — 4×5 一般稀疏矩阵（正常输入）";
+            return 1;
+        case 1: /* TC2 边界值：全零 */
+            out->rows = 3; out->cols = 3;
+            out->desc = "TC2 边界值  — 3×3 全零矩阵（terms=0）";
+            return 1;
+        case 2: /* TC3 边界值：全非零 */
+            out->rows = 3; out->cols = 3;
+            out->arr[0][0] = 1;  out->arr[0][1] = -2; out->arr[0][2] = 3;
+            out->arr[1][0] = 4;  out->arr[1][1] = 5;  out->arr[1][2] = -6;
+            out->arr[2][0] = 7;  out->arr[2][1] = -8; out->arr[2][2] = 9;
+            out->desc = "TC3 边界值  — 3×3 全非零矩阵（最密集）";
+            return 1;
+        case 3: /* TC4 特殊：仅第一行非零 */
+            out->rows = 4; out->cols = 6;
+            out->arr[0][0] = 3; out->arr[0][1] = -1; out->arr[0][2] = 5;
+            out->arr[0][3] = 7; out->arr[0][4] = -4; out->arr[0][5] = 2;
+            out->desc = "TC4 特殊分布 — 仅第一行有非零元素";
+            return 1;
+        case 4: /* TC5 特殊：仅第一列非零 */
+            out->rows = 6; out->cols = 4;
+            out->arr[0][0] = 9;  out->arr[1][0] = -7; out->arr[2][0] = 5;
+            out->arr[3][0] = -3; out->arr[4][0] = 2;  out->arr[5][0] = 4;
+            out->desc = "TC5 特殊分布 — 仅第一列有非零元素";
+            return 1;
+        case 5: /* TC6 特殊：上三角 */
+            out->rows = 5; out->cols = 5;
+            out->arr[0][0] = 2; out->arr[0][1] = -1; out->arr[0][2] = 3; out->arr[0][3] = 4; out->arr[0][4] = 5;
+            out->arr[1][1] = 6; out->arr[1][2] = -2; out->arr[1][3] = 7; out->arr[1][4] = 8;
+            out->arr[2][2] = 9; out->arr[2][3] = -3; out->arr[2][4] = 1;
+            out->arr[3][3] = 4; out->arr[3][4] = -6;
+            out->arr[4][4] = 7;
+            out->desc = "TC6 特殊分布 — 上三角非零元素";
+            return 1;
+        default:
+            return 0;
+    }
+}
 
 /* ─────────────────────────────────────────────
    从二维数组建立三元组表
@@ -404,6 +515,8 @@ static void screen_mode(void)
     printf("  请选择矩阵来源：\n");
     printf("    [1] 使用内置默认矩阵（6×6 示例稀疏矩阵）\n");
     printf("    [2] 手动输入矩阵\n");
+    printf("    [3] 随机生成矩阵（1~15维，设置稀疏度）\n");
+    printf("    [4] 预定义测试案例矩阵\n");
     printf("  请选择: ");
 
     int sub;
@@ -411,13 +524,10 @@ static void screen_mode(void)
 
     TSMatrix M;
     if (sub == 1) {
-        /* 使用默认矩阵（build from default_arr） */
         int tmp[MAXDIM][MAXDIM];
-        memset(tmp, 0, sizeof(tmp));
-        for (int i = 0; i < 6; i++)
-            for (int j = 0; j < 6; j++)
-                tmp[i][j] = default_arr[i][j];
-        build_tsmatrix_from_arr(&M, tmp, 6, 6);
+        int rows, cols;
+        fill_default_matrix(tmp, &rows, &cols);
+        build_tsmatrix_from_arr(&M, tmp, rows, cols);
     } else if (sub == 2) {
         int rows, cols;
         printf("  请输入行数（≤%d）: ", MAXDIM);
@@ -440,6 +550,40 @@ static void screen_mode(void)
             }
         }
         build_tsmatrix_from_arr(&M, tmp, rows, cols);
+    } else if (sub == 3) {
+        int rows, cols, sparsity;
+        int tmp[MAXDIM][MAXDIM];
+        printf("  请输入行数（1~15）: ");
+        if (scanf("%d", &rows) != 1 || rows <= 0 || rows > 15) {
+            printf("  行数无效\n"); return;
+        }
+        printf("  请输入列数（1~15）: ");
+        if (scanf("%d", &cols) != 1 || cols <= 0 || cols > 15) {
+            printf("  列数无效\n"); return;
+        }
+        printf("  请输入稀疏度（0~100，表示零元素占比）: ");
+        if (scanf("%d", &sparsity) != 1 || sparsity < 0 || sparsity > 100) {
+            printf("  稀疏度无效\n"); return;
+        }
+        generate_random_matrix(tmp, rows, cols, sparsity);
+        build_tsmatrix_from_arr(&M, tmp, rows, cols);
+    } else if (sub == 4) {
+        MatrixCase tc;
+        int pick;
+        int total = get_predefined_case_count();
+        printf("  可选测试案例：\n");
+        for (int i = 0; i < total; i++) {
+            if (load_predefined_case(i, &tc)) {
+                printf("    [%d] %s\n", i + 1, tc.desc);
+            }
+        }
+        printf("  请选择案例编号（1~%d）: ", total);
+        if (scanf("%d", &pick) != 1 || pick < 1 || pick > total ||
+            !load_predefined_case(pick - 1, &tc)) {
+            printf("  案例编号无效\n"); return;
+        }
+        printf("  已选择：%s\n", tc.desc);
+        build_tsmatrix_from_arr(&M, tc.arr, tc.rows, tc.cols);
     } else {
         printf("  无效选项\n"); return;
     }
@@ -513,59 +657,18 @@ static void file_mode(void)
     printf("  ✓ 完成，结果已保存至 %s\n", OUTPUT_FILE);
 }
 
-/* 模式3：测试用例
-   等价类划分 + 边界值分析：
-     TC1  正常案例  — 6×6 默认稀疏矩阵（多个非零元素）
-     TC2  边界值    — 全零矩阵（3×3，terms=0）
-     TC3  等价类    — 2×3 非方阵（rows≠cols）
-     TC4  边界值    — 1×1 矩阵（最小矩阵，非零元素）
-*/
+/* 模式3：测试用例（等价类划分 + 边界值分析 + 特殊分布） */
 static void test_mode(void)
 {
-    /* TC1: 默认6×6矩阵 */
-    int arr1[MAXDIM][MAXDIM];
-    memset(arr1, 0, sizeof(arr1));
-    for (int i = 0; i < 6; i++)
-        for (int j = 0; j < 6; j++)
-            arr1[i][j] = default_arr[i][j];
-
-    /* TC2: 全零3×3矩阵 */
-    int arr2[MAXDIM][MAXDIM];
-    memset(arr2, 0, sizeof(arr2));
-
-    /* TC3: 2×3矩阵 */
-    int arr3[MAXDIM][MAXDIM];
-    memset(arr3, 0, sizeof(arr3));
-    arr3[0][1] = 5; arr3[1][2] = -3;
-
-    /* TC4: 1×1矩阵 */
-    int arr4[MAXDIM][MAXDIM];
-    memset(arr4, 0, sizeof(arr4));
-    arr4[0][0] = 42;
-
-    struct {
-        int arr[MAXDIM][MAXDIM];
-        int rows, cols;
-        const char *desc;
-    } cases[4];
-
-    memcpy(cases[0].arr, arr1, sizeof(arr1));
-    cases[0].rows = 6; cases[0].cols = 6;
-    cases[0].desc = "TC1 正常案例  — 6×6 默认稀疏矩阵";
-
-    memcpy(cases[1].arr, arr2, sizeof(arr2));
-    cases[1].rows = 3; cases[1].cols = 3;
-    cases[1].desc = "TC2 边界值    — 全零3×3矩阵（terms=0）";
-
-    memcpy(cases[2].arr, arr3, sizeof(arr3));
-    cases[2].rows = 2; cases[2].cols = 3;
-    cases[2].desc = "TC3 等价类    — 2×3非方阵（rows≠cols）";
-
-    memcpy(cases[3].arr, arr4, sizeof(arr4));
-    cases[3].rows = 1; cases[3].cols = 1;
-    cases[3].desc = "TC4 边界值    — 1×1矩阵（最小矩阵）";
-
-    int num_cases = 4;
+    int num_cases = get_predefined_case_count();
+    MatrixCase cases[MAX_TEST_CASES];
+    if (num_cases > MAX_TEST_CASES) num_cases = MAX_TEST_CASES;
+    for (int i = 0; i < num_cases; i++) {
+        if (!load_predefined_case(i, &cases[i])) {
+            num_cases = i;
+            break;
+        }
+    }
 
     FILE *fout = fopen(OUTPUT_FILE, "w");
     if (!fout) {
@@ -617,6 +720,7 @@ static void test_mode(void)
 int main(void)
 {
     g_out = stdout;
+    srand((unsigned int)time(NULL));
     int choice;
 
     for (;;) {

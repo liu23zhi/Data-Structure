@@ -12,6 +12,76 @@ const INITIAL_MATRIX = [
   [0,   0, -4,  0,  0,  0]
 ];
 
+const TEST_CASES = [
+  {
+    id: 'tc1',
+    name: 'TC1 等价类：4×5 一般稀疏矩阵（正常输入）',
+    desc: '覆盖一般有效输入（非方阵、正负值混合、部分零元素）。',
+    matrix: [
+      [0, 8, 0, 0, -3],
+      [5, 0, 0, 0, 0],
+      [0, 0, 0, 4, 0],
+      [0, 0, 6, 0, 0]
+    ]
+  },
+  {
+    id: 'tc2',
+    name: 'TC2 边界值：3×3 全零矩阵（terms=0）',
+    desc: '覆盖非零元素个数下边界（0 个非零元素）。',
+    matrix: [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0]
+    ]
+  },
+  {
+    id: 'tc3',
+    name: 'TC3 边界值：3×3 全非零矩阵（最密集）',
+    desc: '覆盖非零元素占比上边界（100% 非零元素）。',
+    matrix: [
+      [1, -2, 3],
+      [4, 5, -6],
+      [7, -8, 9]
+    ]
+  },
+  {
+    id: 'tc4',
+    name: 'TC4 特殊分布：仅第一行有非零元素',
+    desc: '覆盖“只有第一行非零”的特殊形态。',
+    matrix: [
+      [3, -1, 5, 7, -4, 2],
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0]
+    ]
+  },
+  {
+    id: 'tc5',
+    name: 'TC5 特殊分布：仅第一列有非零元素',
+    desc: '覆盖“只有第一列非零”的特殊形态。',
+    matrix: [
+      [9, 0, 0, 0],
+      [-7, 0, 0, 0],
+      [5, 0, 0, 0],
+      [-3, 0, 0, 0],
+      [2, 0, 0, 0],
+      [4, 0, 0, 0]
+    ]
+  },
+  {
+    id: 'tc6',
+    name: 'TC6 特殊分布：上三角非零元素',
+    desc: '覆盖三角形非零分布（上三角）。',
+    matrix: [
+      [2, -1, 3, 4, 5],
+      [0, 6, -2, 7, 8],
+      [0, 0, 9, -3, 1],
+      [0, 0, 0, 4, -6],
+      [0, 0, 0, 0, 7]
+    ]
+  }
+];
+
 let ACTIVE_MATRIX = INITIAL_MATRIX.map(r => [...r]);
 let MATRIX_ROWS = 6;
 let MATRIX_COLS = 6;
@@ -878,11 +948,23 @@ function clampDim(value, defaultVal) {
 }
 
 function setupDataSourceHandlers() {
+  const manualPanel = document.getElementById('manual-input-panel');
+  const randomPanel = document.getElementById('random-input-panel');
+  const testcasePanel = document.getElementById('testcase-input-panel');
+  const testcaseSelect = document.getElementById('testcase-select');
+  const testcaseDesc = document.getElementById('testcase-description');
+
+  testcaseSelect.innerHTML = TEST_CASES
+    .map((tc, i) => `<option value="${i}">${escHtml(tc.name)}</option>`)
+    .join('');
+  testcaseDesc.textContent = TEST_CASES[0].desc;
+
   // Radio button switching
   document.querySelectorAll('input[name="data-source"]').forEach(radio => {
     radio.addEventListener('change', e => {
-      document.getElementById('manual-input-panel').classList.toggle('hidden', e.target.value !== 'manual');
-      document.getElementById('random-input-panel').classList.toggle('hidden', e.target.value !== 'random');
+      manualPanel.classList.toggle('hidden', e.target.value !== 'manual');
+      randomPanel.classList.toggle('hidden', e.target.value !== 'random');
+      testcasePanel.classList.toggle('hidden', e.target.value !== 'testcase');
       if (e.target.value === 'default') {
         rebuildApp(INITIAL_MATRIX);
       }
@@ -906,13 +988,29 @@ function setupDataSourceHandlers() {
   document.getElementById('btn-generate-random').addEventListener('click', () => {
     const r = clampDim(document.getElementById('random-rows').value, 6);
     const c = clampDim(document.getElementById('random-cols').value, 6);
-    const density = Math.min(60, Math.max(5, parseInt(document.getElementById('random-density').value) || 20));
-    const matrix = generateRandomMatrix(r, c, density);
+    const sparsity = Math.min(100, Math.max(0, parseInt(document.getElementById('random-density').value) || 60));
+    const matrix = generateRandomMatrix(r, c, sparsity);
     rebuildApp(matrix);
     // Also select "random" radio visually
     document.querySelector('input[name="data-source"][value="random"]').checked = true;
-    document.getElementById('manual-input-panel').classList.add('hidden');
-    document.getElementById('random-input-panel').classList.remove('hidden');
+    manualPanel.classList.add('hidden');
+    randomPanel.classList.remove('hidden');
+    testcasePanel.classList.add('hidden');
+  });
+
+  testcaseSelect.addEventListener('change', () => {
+    const idx = parseInt(testcaseSelect.value, 10) || 0;
+    testcaseDesc.textContent = TEST_CASES[idx].desc;
+  });
+
+  document.getElementById('btn-apply-testcase').addEventListener('click', () => {
+    const idx = parseInt(testcaseSelect.value, 10) || 0;
+    const matrix = TEST_CASES[idx].matrix.map(row => [...row]);
+    rebuildApp(matrix);
+    document.querySelector('input[name="data-source"][value="testcase"]').checked = true;
+    manualPanel.classList.add('hidden');
+    randomPanel.classList.add('hidden');
+    testcasePanel.classList.remove('hidden');
   });
 }
 
@@ -945,9 +1043,14 @@ function readInputGrid() {
   return matrix;
 }
 
-function generateRandomMatrix(rows, cols, densityPct) {
+function generateRandomMatrix(rows, cols, sparsityPct) {
   const matrix = Array.from({length: rows}, () => Array(cols).fill(0));
-  const count = Math.max(1, Math.floor(rows * cols * densityPct / 100));
+  const total = rows * cols;
+  const safeSparsity = Math.min(100, Math.max(0, sparsityPct));
+  // 与 C 端一致的 half-up 取整：count = floor(x + 0.5)
+  // sparsity=100% => 0，sparsity=0% => total
+  const count = Math.floor(total * (100 - safeSparsity) / 100 + 0.5);
+  if (count <= 0) return matrix;
   const positions = [];
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++)
@@ -992,6 +1095,7 @@ function setupFileIOHandlers() {
       document.querySelectorAll('input[name="data-source"]').forEach(r => { r.checked = r.value === 'default'; });
       document.getElementById('manual-input-panel').classList.add('hidden');
       document.getElementById('random-input-panel').classList.add('hidden');
+      document.getElementById('testcase-input-panel').classList.add('hidden');
     }
   });
 
