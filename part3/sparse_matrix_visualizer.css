@@ -521,14 +521,14 @@ body {
   margin-top: 8px;
 }
 .source-panel.hidden { display: none; }
-.manual-size-row, .random-params-row {
+.manual-size-row, .random-params-row, .testcase-row {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
-.manual-size-row label, .random-params-row label {
+.manual-size-row label, .random-params-row label, .testcase-row label {
   font-size: 0.85rem;
   display: flex;
   align-items: center;
@@ -540,6 +540,17 @@ body {
   padding: 3px 6px;
   border: 1px solid #bbb;
   border-radius: 4px;
+}
+.testcase-row select {
+  min-width: 280px;
+  padding: 4px 6px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+.source-tip {
+  font-size: 0.82rem;
+  color: #666;
+  margin-top: 2px;
 }
 .matrix-input-table {
   border-collapse: collapse;
