@@ -988,31 +988,31 @@ function setupDataSourceHandlers() {
   document.getElementById('btn-generate-random').addEventListener('click', () => {
     const r = clampDim(document.getElementById('random-rows').value, 6);
     const c = clampDim(document.getElementById('random-cols').value, 6);
-    const sparsity = Math.min(100, Math.max(0, parseInt(document.getElementById('random-sparsity').value) || 60));
+    
+    // 正确读取稀疏度，修复0值被替换的bug
+    const inputElement = document.getElementById('random-sparsity');
+    const rawValue = inputElement ? inputElement.value.trim() : '75';
+    // 修复：0是合法值，不能用||，用??空值合并，先判断是否为NaN
+    const parsedValue = parseInt(rawValue);
+    const sparsity = isNaN(parsedValue) ? 75 : Math.min(100, Math.max(0, parsedValue));
+
+    // 调试日志
+    console.log('>>>>> 点击生成 <<<<<');
+    console.log('读取到的稀疏度输入框 ID:', inputElement ? '找到 random-sparsity' : '未找到！！！');
+    console.log('输入的原始值:', rawValue);
+    console.log('最终使用的稀疏度:', sparsity + '%');
+
     const matrix = generateRandomMatrix(r, c, sparsity);
+    
+    console.log('生成的矩阵数据:', matrix);
+
     rebuildApp(matrix);
-    // Also select "random" radio visually
+    
     document.querySelector('input[name="data-source"][value="random"]').checked = true;
-    manualPanel.classList.add('hidden');
-    randomPanel.classList.remove('hidden');
-    testcasePanel.classList.add('hidden');
+    document.getElementById('manual-input-panel').classList.add('hidden');
+    document.getElementById('random-input-panel').classList.remove('hidden');
+    document.getElementById('testcase-input-panel').classList.add('hidden');
   });
-
-  testcaseSelect.addEventListener('change', () => {
-    const idx = parseInt(testcaseSelect.value, 10) || 0;
-    testcaseDesc.textContent = TEST_CASES[idx].desc;
-  });
-
-  document.getElementById('btn-apply-testcase').addEventListener('click', () => {
-    const idx = parseInt(testcaseSelect.value, 10) || 0;
-    const matrix = TEST_CASES[idx].matrix.map(row => [...row]);
-    rebuildApp(matrix);
-    document.querySelector('input[name="data-source"][value="testcase"]').checked = true;
-    manualPanel.classList.add('hidden');
-    randomPanel.classList.add('hidden');
-    testcasePanel.classList.remove('hidden');
-  });
-}
 
 function buildInputGrid(rows, cols) {
   const grid = document.getElementById('matrix-input-grid');
@@ -1043,23 +1043,67 @@ function readInputGrid() {
   return matrix;
 }
 
-function generateRandomMatrix(rows, cols, sparsityPct) {
-  const total = rows * cols;
-  const safeSparsity = Math.min(100, Math.max(0, sparsityPct));
-  
-  // ============================================================
-  // 边界条件 1：稀疏度 = 0% → 全非零（1-99），绝对不出现 0
-  // ============================================================
-  if (safeSparsity === 0) {
-    const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
+  function generateRandomMatrix(rows, cols, sparsityPct) {
+  console.log(`[generateRandomMatrix] 收到参数: rows=${rows}, cols=${cols}, sparsity=${sparsityPct}%`);
+
+  // 边界1：稀疏度=0% → 全非零（1-99），绝对无0
+  if (sparsityPct === 0) {
+    console.log('[generateRandomMatrix] 执行分支：稀疏度 0% → 全非零 (1-99)');
+    const matrix = [];
     for (let r = 0; r < rows; r++) {
+      const row = [];
       for (let c = 0; c < cols; c++) {
-        // 生成 1 到 99 的随机整数
-        matrix[r][c] = Math.floor(Math.random() * 99) + 1;
+        // 硬编码生成1-99的非零整数
+        const val = Math.floor(Math.random() * 99) + 1;
+        row.push(val);
       }
+      matrix.push(row);
     }
+    console.log('[generateRandomMatrix] 生成的全非零矩阵:', matrix);
     return matrix;
   }
+
+  // 边界2：稀疏度=100% → 全零
+  if (sparsityPct === 100) {
+    console.log('[generateRandomMatrix] 执行分支：稀疏度 100% → 全零');
+    return Array.from({ length: rows }, () => Array(cols).fill(0));
+  }
+
+  // 普通情况：0% < 稀疏度 < 100%
+  console.log('[generateRandomMatrix] 执行分支：普通情况');
+  const total = rows * cols;
+  const zeroCount = Math.round(total * sparsityPct / 100);
+  
+  // 先生成全非零矩阵
+  const matrix = [];
+  for (let r = 0; r < rows; r++) {
+    const row = [];
+    for (let c = 0; c < cols; c++) {
+      row.push(Math.floor(Math.random() * 99) + 1);
+    }
+    matrix.push(row);
+  }
+
+  // 随机选择位置置零
+  const positions = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      positions.push([r, c]);
+    }
+  }
+  // Fisher-Yates 洗牌
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+  // 置零
+  for (let k = 0; k < zeroCount; k++) {
+    const [rr, cc] = positions[k];
+    matrix[rr][cc] = 0;
+  }
+  
+  return matrix;
+}
 
   // ============================================================
   // 边界条件 2：稀疏度 = 100% → 全零
