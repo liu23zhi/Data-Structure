@@ -1,7 +1,7 @@
 'use strict';
 
 // ============================================================
-//  DEFAULT DATA  —  matches part1/block_search.c exactly
+//  DEFAULT DATA  —  EXACTLY matches part1/block_search.c
 // ============================================================
 
 const DEFAULT_ARRAY = [
@@ -39,10 +39,22 @@ function rebuildDerived() {
     for (let i = b * BLOCK_SIZE; i < (b + 1) * BLOCK_SIZE; i++) {
       nodes.push(ARRAY[i]);
     }
-    LINKED_BLOCKS.push({ max_val: IDX[b].max_val, nodes });
+    LINKED_BLOCKS.push({ max_val: IDX[b].max_val, nodes, size: BLOCK_SIZE });
   }
 }
 rebuildDerived();
+
+// ============================================================
+//  SEARCH RESULT STRUCT  —  matches C's SearchResult
+// ============================================================
+class SearchResult {
+  constructor() {
+    this.position = -1;       // 1-based position, -1 = not found
+    this.index_compares = 0;  // number of comparisons in index table
+    this.block_compares = 0;  // number of comparisons in block
+    this.total_compares = 0;  // total comparisons
+  }
+}
 
 // ============================================================
 //  STEP BUILDER HELPER
@@ -61,8 +73,9 @@ rebuildDerived();
  * @param {Object} variables  - key-value variable chips
  * @param {Object} highlight  - which elements/rows to highlight
  * @param {Object} algoState  - algorithm-specific state for the state panel
+ * @param {SearchResult} searchResult - current search result (matches C)
  */
-function mkStep(algorithm, phase, title, desc, fn, variables, highlight, algoState) {
+function mkStep(algorithm, phase, title, desc, fn, variables, highlight, algoState, searchResult) {
   return Object.freeze({
     algorithm,
     phase,
@@ -87,6 +100,7 @@ function mkStep(algorithm, phase, title, desc, fn, variables, highlight, algoSta
       highlight
     ),
     algoState: Object.assign({}, algoState),
+    searchResult: searchResult ? Object.assign({}, searchResult) : new SearchResult(),
     stepIndex:  0,  // will be stamped by initApp()
     totalSteps: 0   // will be stamped by initApp()
   });
@@ -94,34 +108,36 @@ function mkStep(algorithm, phase, title, desc, fn, variables, highlight, algoSta
 
 // ============================================================
 //  ALGORITHM 1:  block_search_sequential_index
-//  Logic: sequential scan of index table → locate block → sequential search within block
+//  Logic: EXACTLY matches C code
 // ============================================================
 function generateSequentialSteps() {
   const steps = [];
   const FN = 'block_search_sequential_index';
+  const result = new SearchResult();
 
   // ── Step 0: Initialisation ──────────────────────────────
-  // Explain the algorithm before any comparison is made.
   steps.push(mkStep(
     'sequential', '初始化',
     '顺序索引分块查找 — 算法开始',
     '分块查找（索引顺序查找）是一种介于顺序查找和折半查找之间的查找方法。' +
     '基本思路：先建立索引表（每项记录各块的最大关键字和起始下标），' +
     '查找时第一步在索引表中顺序扫描，找到关键字可能所在的块；' +
-    '第二步在该块内做顺序查找。本例：顺序表共 25 个元素，分为 5 块，每块 5 个元素，查找关键字 key = 46。',
+    '第二步在该块内做顺序查找。本例：顺序表共 25 个元素，分为 5 块，每块 5 个元素，查找关键字 key = ' + KEY + '。',
     FN,
     { key: KEY, n: 25, block_size: BLOCK_SIZE, num_blocks: NUM_BLOCKS },
     {},
-    { phase: 'init', b: '—', pos: '—', stepNum: 0, result: -1 }
+    { phase: 'init', b: '—', pos: '—', stepNum: 0 },
+    result
   ));
 
   // ── 第一步：在索引表中顺序查找 ──────────────────────────
-  // C code: for (int b = 0; b < NUM_BLOCKS; b++) { if (key <= idx[b].max_val) ... }
+  // EXACT C code: for (int b = 0; b < NUM_BLOCKS; b++) { if (key <= idx[b].max_val) ... }
   let block_id = -1;
-  let stepNum = 0;
 
   for (let b = 0; b < NUM_BLOCKS; b++) {
-    stepNum++;
+    result.index_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
     const found = KEY <= IDX[b].max_val;
 
     steps.push(mkStep(
@@ -131,7 +147,7 @@ function generateSequentialSteps() {
         : `key(${KEY}) > idx[${b}].max(${IDX[b].max_val}) → 继续向后`,
       found
         ? `比较第 ${b + 1} 项索引：key = ${KEY} ≤ idx[${b}].max_val = ${IDX[b].max_val}，条件成立。` +
-          `关键字 ${KEY} 的最大可能所在块确定为第 ${b + 1} 块（数组下标 ${IDX[b].start}~${IDX[b].start + BLOCK_SIZE - 1}）。` +
+          `关键字 ${KEY} 的最大可能所在块确定为第 ${b + 1} 块（数组下标 ${IDX[b].start + 1}~${IDX[b].start + BLOCK_SIZE}）。` +
           `退出索引查找循环，准备进入块内顺序查找。`
         : `比较第 ${b + 1} 项索引：key = ${KEY} > idx[${b}].max_val = ${IDX[b].max_val}，条件不成立。` +
           `关键字不在第 ${b + 1} 块（该块最大元素为 ${IDX[b].max_val}，比 ${KEY} 小），继续扫描下一项。`,
@@ -141,7 +157,8 @@ function generateSequentialSteps() {
         b: b,
         [`idx[${b}].max_val`]: IDX[b].max_val,
         [`key <= idx[${b}].max?`]: found ? '是 ✓' : '否',
-        比较次数: stepNum
+        索引比较次数: result.index_compares,
+        总比较次数: result.total_compares
       },
       {
         indexRow:   found ? -1 : b,
@@ -152,63 +169,86 @@ function generateSequentialSteps() {
         phase: 'index',
         b,
         pos: '—',
-        stepNum,
-        result: -1,
         block_id: found ? b : -1
-      }
+      },
+      result
     ));
 
     if (found) { block_id = b; break; }
   }
 
+  if (block_id === -1) {
+    steps.push(mkStep(
+      'sequential', '完成',
+      `❌ 查找失败，关键字 ${KEY} 不在表中`,
+      `未找到对应块，查找失败。遍历了全部索引表，共 ${result.index_compares} 次比较。`,
+      FN,
+      {
+        key: KEY,
+        结果: '未找到',
+        索引比较次数: result.index_compares,
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares
+      },
+      {},
+      { phase: 'done', b: '—', pos: '—', result: -1 },
+      result
+    ));
+    return steps;
+  }
+
   // ── Announce entering block ─────────────────────────────
   steps.push(mkStep(
     'sequential', '进入块内查找',
-    `进入第 ${block_id + 1} 块，准备顺序查找（下标 ${IDX[block_id].start}~${IDX[block_id].start + BLOCK_SIZE - 1}）`,
+    `进入第 ${block_id + 1} 块，准备顺序查找（下标 ${IDX[block_id].start + 1}~${IDX[block_id].start + BLOCK_SIZE}）`,
     `索引表确定关键字 ${KEY} 在第 ${block_id + 1} 块内（idx[${block_id}].start = ${IDX[block_id].start}，` +
-    `块大小 = ${BLOCK_SIZE}，元素范围：下标 ${IDX[block_id].start} 到 ${IDX[block_id].start + BLOCK_SIZE - 1}）。` +
+    `块大小 = ${BLOCK_SIZE}，元素范围：下标 ${IDX[block_id].start + 1} 到 ${IDX[block_id].start + BLOCK_SIZE}）。` +
     `块内元素为 [${ARRAY.slice(IDX[block_id].start, IDX[block_id].start + BLOCK_SIZE).join(', ')}]。` +
     `接下来对这 ${BLOCK_SIZE} 个元素逐一比较，时间复杂度 O(s) = O(${BLOCK_SIZE})。`,
     FN,
     {
       block_id: block_id,
-      [`块 ${block_id + 1} 起始下标`]: IDX[block_id].start,
+      [`块 ${block_id + 1} 起始下标`]: IDX[block_id].start + 1,
       [`块 ${block_id + 1} 元素`]: `[${ARRAY.slice(IDX[block_id].start, IDX[block_id].start + BLOCK_SIZE).join(',')}]`
     },
     {
       activeBlock: block_id,
       indexFound:  block_id
     },
-    { phase: 'block', b: block_id, pos: IDX[block_id].start, stepNum, result: -1, block_id }
+    { phase: 'block', b: block_id, pos: IDX[block_id].start, block_id },
+    result
   ));
 
   // ── 第二步：块内顺序查找 ────────────────────────────────
-  // C code: for (int i = 0; i < BLOCK_SIZE; i++) { pos = idx[block_id].start + i; if (a[pos] == key) ... }
+  // EXACT C code: for (int i = 0; i < BLOCK_SIZE; i++) { pos = idx[block_id].start + i; if (a[pos] == key) ... }
   let found_pos = -1;
   for (let i = 0; i < BLOCK_SIZE; i++) {
     const pos = IDX[block_id].start + i;
-    stepNum++;
+    result.block_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
     const isMatch = ARRAY[pos] === KEY;
 
     steps.push(mkStep(
-      'sequential', `块内比较 a[${pos}]`,
+      'sequential', `块内比较 a[${pos + 1}]`,
       isMatch
-        ? `🎉 查找成功！a[${pos}] = ${ARRAY[pos]} == key(${KEY}) → 找到，位置 = ${pos + 1}（1-based）`
-        : `a[${pos}] = ${ARRAY[pos]} ≠ key(${KEY}) → 继续`,
+        ? `🎉 查找成功！a[${pos + 1}] = ${ARRAY[pos]} == key(${KEY}) → 找到，位置 = ${pos + 1}（1-based）`
+        : `a[${pos + 1}] = ${ARRAY[pos]} ≠ key(${KEY}) → 继续`,
       isMatch
-        ? `比较 a[${pos}] = ${ARRAY[pos]} 与 key = ${KEY}：相等！查找成功。` +
+        ? `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：相等！查找成功。` +
           `关键字 ${KEY} 位于顺序表第 ${pos + 1} 个位置（0-based 下标 ${pos}），` +
-          `即第 ${block_id + 1} 块第 ${i + 1} 个元素。总比较次数 = ${stepNum}（索引 ${block_id + 1} 次 + 块内 ${i + 1} 次）。`
-        : `比较 a[${pos}] = ${ARRAY[pos]} 与 key = ${KEY}：不相等，继续检查下一个元素。` +
+          `即第 ${block_id + 1} 块第 ${i + 1} 个元素。总比较次数 = ${result.total_compares}（索引 ${result.index_compares} 次 + 块内 ${result.block_compares} 次）。`
+        : `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：不相等，继续检查下一个元素。` +
           `当前在第 ${block_id + 1} 块第 ${i + 1} 个位置，还有 ${BLOCK_SIZE - i - 1} 个元素待检查。`,
       FN,
       {
         key: KEY,
-        [`a[${pos}]`]: ARRAY[pos],
-        [`a[${pos}] == key?`]: isMatch ? '是 ✓' : '否',
-        比较次数: stepNum,
+        [`a[${pos + 1}]`]: ARRAY[pos],
+        [`a[${pos + 1}] == key?`]: isMatch ? '是 ✓' : '否',
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares,
         block_id: block_id,
-        pos: pos
+        pos: pos + 1
       },
       {
         arrayIndices: isMatch ? [] : [pos],
@@ -216,10 +256,15 @@ function generateSequentialSteps() {
         activeBlock:  block_id,
         indexFound:   block_id
       },
-      { phase: 'block', b: block_id, pos, stepNum, result: isMatch ? pos + 1 : -1, block_id }
+      { phase: 'block', b: block_id, pos: pos + 1, result: isMatch ? pos + 1 : -1, block_id },
+      result
     ));
 
-    if (isMatch) { found_pos = pos; break; }
+    if (isMatch) { 
+      found_pos = pos; 
+      result.position = pos + 1;
+      break; 
+    }
   }
 
   // ── Summary ─────────────────────────────────────────────
@@ -229,25 +274,26 @@ function generateSequentialSteps() {
       ? `✅ 顺序索引分块查找完成！关键字 ${KEY} 在位置 ${found_pos + 1}（1-based）`
       : `❌ 查找失败，关键字 ${KEY} 不在表中`,
     found_pos >= 0
-      ? `顺序索引分块查找成功结束。总比较次数 = ${stepNum}，包括：` +
-        `索引查找 ${block_id + 1} 次 + 块内查找 ${stepNum - block_id - 1} 次。` +
+      ? `顺序索引分块查找成功结束。总比较次数 = ${result.total_compares}，包括：` +
+        `索引查找 ${result.index_compares} 次 + 块内查找 ${result.block_compares} 次。` +
         `理论最优：b=5，s=5 时，顺序分块平均比较次数 ≈ (b+1)/2 + (s+1)/2 = 3 + 3 = 6 次。` +
-        `本次实际用了 ${stepNum} 次，因为目标元素在第 ${block_id + 1} 块的最后一个位置。`
+        `本次实际用了 ${result.total_compares} 次，因为目标元素在第 ${block_id + 1} 块的最后一个位置。`
       : `查找失败。遍历了全部索引表和对应块，均未找到关键字 ${KEY}。`,
     FN,
     {
       key: KEY,
       结果: found_pos >= 0 ? `位置 ${found_pos + 1}` : '未找到',
-      总比较次数: stepNum,
-      索引比较次数: block_id + 1,
-      块内比较次数: stepNum - block_id - 1
+      总比较次数: result.total_compares,
+      索引比较次数: result.index_compares,
+      块内比较次数: result.block_compares
     },
     {
       foundIndex:  found_pos,
       activeBlock: block_id,
       indexFound:  block_id
     },
-    { phase: 'done', b: block_id, pos: found_pos, stepNum, result: found_pos >= 0 ? found_pos + 1 : -1, block_id }
+    { phase: 'done', b: block_id, pos: found_pos + 1, result: found_pos >= 0 ? found_pos + 1 : -1, block_id },
+    result
   ));
 
   return steps;
@@ -255,11 +301,12 @@ function generateSequentialSteps() {
 
 // ============================================================
 //  ALGORITHM 2:  block_search_binary_index
-//  Logic: binary search of index table → locate block → sequential search within block
+//  Logic: EXACTLY matches C code
 // ============================================================
 function generateBinarySteps() {
   const steps = [];
   const FN = 'block_search_binary_index';
+  const result = new SearchResult();
 
   // ── Step 0: Initialisation ──────────────────────────────
   steps.push(mkStep(
@@ -268,7 +315,7 @@ function generateBinarySteps() {
     '折半索引分块查找改进了第一阶段：使用折半查找（二分查找）在索引表中定位块，' +
     '将第一阶段时间复杂度从 O(b) 降为 O(log b)，第二阶段仍使用块内顺序查找 O(s)。' +
     '总时间复杂度 O(log b + s)。本例：b = 5，⌈log₂5⌉ = 3，s = 5，最多 8 次比较。' +
-    '当 b 较大时，折半索引优势明显。key = 46，索引表共 5 项。',
+    '当 b 较大时，折半索引优势明显。key = ' + KEY + '，索引表共 5 项。',
     FN,
     {
       key: KEY,
@@ -279,11 +326,12 @@ function generateBinarySteps() {
       s: BLOCK_SIZE
     },
     {},
-    { phase: 'init', low: 0, high: NUM_BLOCKS - 1, mid: '—', block_id: -1, stepNum: 0, result: -1 }
+    { phase: 'init', low: 0, high: NUM_BLOCKS - 1, mid: '—', block_id: -1 },
+    result
   ));
 
   // ── 第一步：折半查找索引表 ──────────────────────────────
-  // C code:
+  // EXACT C code:
   //   int low = 0, high = NUM_BLOCKS - 1, block_id = -1;
   //   while (low <= high) {
   //     int mid = (low + high) / 2;
@@ -292,12 +340,12 @@ function generateBinarySteps() {
   //     else                              { low = mid + 1; }
   //   }
   let low = 0, high = NUM_BLOCKS - 1, block_id = -1;
-  let stepNum = 0;
   let binaryStep = 1;
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    stepNum++;
+    result.index_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
 
     let direction, explanation, newLow = low, newHigh = high, newBlockId = block_id;
 
@@ -335,7 +383,8 @@ function generateBinarySteps() {
         key: KEY,
         方向: direction === 'equal' ? '精确命中' : direction === 'left' ? '向左 (key < max)' : '向右 (key > max)',
         block_id: newBlockId,
-        比较次数: stepNum
+        索引比较次数: result.index_compares,
+        总比较次数: result.total_compares
       },
       {
         indexMid:       mid,
@@ -349,10 +398,9 @@ function generateBinarySteps() {
         low,
         high,
         mid,
-        block_id: newBlockId,
-        stepNum,
-        result: -1
-      }
+        block_id: newBlockId
+      },
+      result
     ));
 
     low      = newLow;
@@ -363,10 +411,28 @@ function generateBinarySteps() {
     if (direction === 'equal') break;
   }
 
-  // Handle fallback: if block_id still -1, use low (C code: if (block_id == -1 && low < NUM_BLOCKS))
+  // EXACT C code: if (block_id == -1) { if (low < NUM_BLOCKS) { block_id = low; } else { ... } }
   if (block_id === -1) {
     if (low < NUM_BLOCKS) {
       block_id = low;
+    } else {
+      steps.push(mkStep(
+        'binary', '完成',
+        `❌ 查找失败，关键字 ${KEY} 不在表中`,
+        `超出索引范围，查找失败。折半查找共 ${result.index_compares} 次比较。`,
+        FN,
+        {
+          key: KEY,
+          结果: '未找到',
+          索引比较次数: result.index_compares,
+          块内比较次数: result.block_compares,
+          总比较次数: result.total_compares
+        },
+        {},
+        { phase: 'done', low, high, mid: '—', result: -1 },
+        result
+      ));
+      return steps;
     }
   }
 
@@ -376,48 +442,52 @@ function generateBinarySteps() {
     `折半查找结束 — 确定关键字可能在第 ${block_id + 1} 块`,
     `折半查找循环结束（low=${low} > high=${high}）。根据 C 代码逻辑，` +
     `block_id = ${block_id}（第 ${block_id + 1} 块）。` +
-    `索引折半查找共做了 ${stepNum} 次比较，远少于顺序扫描的最多 5 次（本例）。` +
-    `接下来进入第 ${block_id + 1} 块（下标 ${IDX[block_id].start}~${IDX[block_id].start + BLOCK_SIZE - 1}）做顺序查找。`,
+    `索引折半查找共做了 ${result.index_compares} 次比较，远少于顺序扫描的最多 5 次（本例）。` +
+    `接下来进入第 ${block_id + 1} 块（下标 ${IDX[block_id].start + 1}~${IDX[block_id].start + BLOCK_SIZE}）做顺序查找。`,
     FN,
     {
       block_id: block_id,
       low,
       high,
-      索引比较次数: stepNum,
-      [`块 ${block_id + 1} 范围`]: `[${IDX[block_id].start}, ${IDX[block_id].start + BLOCK_SIZE - 1}]`
+      索引比较次数: result.index_compares,
+      [`块 ${block_id + 1} 范围`]: `[${IDX[block_id].start + 1}, ${IDX[block_id].start + BLOCK_SIZE}]`
     },
     {
       indexFound:  block_id,
       activeBlock: block_id
     },
-    { phase: 'block', low, high, mid: '—', block_id, stepNum, result: -1 }
+    { phase: 'block', low, high, mid: '—', block_id },
+    result
   ));
 
   // ── 第二步：块内顺序查找（与 sequential 相同逻辑） ──────
   let found_pos = -1;
   for (let i = 0; i < BLOCK_SIZE; i++) {
     const pos = IDX[block_id].start + i;
-    stepNum++;
+    result.block_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
     const isMatch = ARRAY[pos] === KEY;
 
     steps.push(mkStep(
-      'binary', `块内比较 a[${pos}]`,
+      'binary', `块内比较 a[${pos + 1}]`,
       isMatch
-        ? `🎉 查找成功！a[${pos}] = ${ARRAY[pos]} == key(${KEY}) → 位置 ${pos + 1}`
-        : `a[${pos}] = ${ARRAY[pos]} ≠ key(${KEY}) → 继续`,
+        ? `🎉 查找成功！a[${pos + 1}] = ${ARRAY[pos]} == key(${KEY}) → 位置 ${pos + 1}`
+        : `a[${pos + 1}] = ${ARRAY[pos]} ≠ key(${KEY}) → 继续`,
       isMatch
-        ? `比较 a[${pos}] = ${ARRAY[pos]} 与 key = ${KEY}：相等！查找成功。` +
+        ? `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：相等！查找成功。` +
           `关键字 ${KEY} 位于顺序表第 ${pos + 1} 个位置（0-based 下标 ${pos}），` +
           `即第 ${block_id + 1} 块第 ${i + 1} 个元素。` +
-          `总比较次数：索引折半 ${binaryStep - 1} 次 + 块内 ${i + 1} 次 = ${stepNum} 次。`
-        : `比较 a[${pos}] = ${ARRAY[pos]} 与 key = ${KEY}：不相等，继续。` +
+          `总比较次数：索引折半 ${result.index_compares} 次 + 块内顺序 ${result.block_compares} 次 = ${result.total_compares} 次。`
+        : `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：不相等，继续。` +
           `当前在第 ${block_id + 1} 块第 ${i + 1} 个位置，还剩 ${BLOCK_SIZE - i - 1} 个。`,
       FN,
       {
         key: KEY,
-        [`a[${pos}]`]: ARRAY[pos],
-        [`a[${pos}] == key?`]: isMatch ? '是 ✓' : '否',
-        比较次数: stepNum,
+        [`a[${pos + 1}]`]: ARRAY[pos],
+        [`a[${pos + 1}] == key?`]: isMatch ? '是 ✓' : '否',
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares,
         block_id
       },
       {
@@ -426,10 +496,15 @@ function generateBinarySteps() {
         activeBlock:  block_id,
         indexFound:   block_id
       },
-      { phase: 'block', low, high, block_id, pos, stepNum, result: isMatch ? pos + 1 : -1 }
+      { phase: 'block', low, high, block_id, pos: pos + 1, result: isMatch ? pos + 1 : -1 },
+      result
     ));
 
-    if (isMatch) { found_pos = pos; break; }
+    if (isMatch) { 
+      found_pos = pos; 
+      result.position = pos + 1;
+      break; 
+    }
   }
 
   // ── Summary ─────────────────────────────────────────────
@@ -439,25 +514,26 @@ function generateBinarySteps() {
       ? `✅ 折半索引分块查找完成！关键字 ${KEY} 在位置 ${found_pos + 1}（1-based）`
       : `❌ 查找失败，关键字 ${KEY} 不在表中`,
     found_pos >= 0
-      ? `折半索引分块查找成功结束。总比较次数 = ${stepNum}，包括：` +
-        `索引折半 ${binaryStep - 1} 次 + 块内顺序 ${stepNum - (binaryStep - 1)} 次。` +
-        `对比顺序索引查找（本例总计 9 次），折半索引仅用 ${stepNum} 次，节省了索引阶段的比较开销。` +
+      ? `折半索引分块查找成功结束。总比较次数 = ${result.total_compares}，包括：` +
+        `索引折半 ${result.index_compares} 次 + 块内顺序 ${result.block_compares} 次。` +
+        `对比顺序索引查找（本例总计 9 次），折半索引仅用 ${result.total_compares} 次，节省了索引阶段的比较开销。` +
         `当 b 很大时（如 b=1000），折半索引优势更加显著（log₂1000 ≈ 10 vs 顺序最多 1000）。`
       : `查找失败。`,
     FN,
     {
       key: KEY,
       结果: found_pos >= 0 ? `位置 ${found_pos + 1}` : '未找到',
-      总比较次数: stepNum,
-      索引折半次数: binaryStep - 1,
-      块内顺序次数: stepNum - (binaryStep - 1)
+      总比较次数: result.total_compares,
+      索引折半次数: result.index_compares,
+      块内顺序次数: result.block_compares
     },
     {
       foundIndex:  found_pos,
       activeBlock: block_id,
       indexFound:  block_id
     },
-    { phase: 'done', block_id, pos: found_pos, stepNum, result: found_pos >= 0 ? found_pos + 1 : -1 }
+    { phase: 'done', block_id, pos: found_pos + 1, result: found_pos >= 0 ? found_pos + 1 : -1 },
+    result
   ));
 
   return steps;
@@ -465,11 +541,12 @@ function generateBinarySteps() {
 
 // ============================================================
 //  ALGORITHM 3:  linked_block_search
-//  Logic: sequential scan of index table → locate block → traverse singly-linked list within block
+//  Logic: EXACTLY matches C code
 // ============================================================
 function generateLinkedSteps() {
   const steps = [];
   const FN = 'linked_block_search';
+  const result = new SearchResult();
 
   // ── Step 0: Intro ───────────────────────────────────────
   steps.push(mkStep(
@@ -491,15 +568,17 @@ function generateLinkedSteps() {
       num_blocks: NUM_BLOCKS
     },
     {},
-    { phase: 'init', b: '—', llPos: '—', stepNum: 0, result: -1 }
+    { phase: 'init', b: '—', llPos: '—' },
+    result
   ));
 
   // ── 第一步：顺序扫描索引（与 sequential_index 相同逻辑）────
   let block_id = -1;
-  let stepNum  = 0;
 
   for (let b = 0; b < NUM_BLOCKS; b++) {
-    stepNum++;
+    result.index_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
     const found = KEY <= LINKED_BLOCKS[b].max_val;
 
     steps.push(mkStep(
@@ -518,17 +597,39 @@ function generateLinkedSteps() {
         b,
         [`linked_blocks[${b}].max_val`]: LINKED_BLOCKS[b].max_val,
         [`key <= max?`]: found ? '是 ✓' : '否',
-        比较次数: stepNum
+        索引比较次数: result.index_compares,
+        总比较次数: result.total_compares
       },
       {
         indexRow:    found ? -1 : b,
         indexFound:  found ? b  : -1,
         activeBlock: found ? b  : -1
       },
-      { phase: 'index', b, llPos: '—', stepNum, result: -1, block_id: found ? b : -1 }
+      { phase: 'index', b, llPos: '—', block_id: found ? b : -1 },
+      result
     ));
 
     if (found) { block_id = b; break; }
+  }
+
+  if (block_id === -1) {
+    steps.push(mkStep(
+      'linked', '完成',
+      `❌ 查找失败，关键字 ${KEY} 不在表中`,
+      `未找到对应块，查找失败。遍历了全部索引表，共 ${result.index_compares} 次比较。`,
+      FN,
+      {
+        key: KEY,
+        结果: '未找到',
+        索引比较次数: result.index_compares,
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares
+      },
+      {},
+      { phase: 'done', b: '—', llPos: '—', result: -1 },
+      result
+    ));
+    return steps;
   }
 
   // ── Announce linked list traversal ──────────────────────
@@ -543,7 +644,7 @@ function generateLinkedSteps() {
     {
       block_id,
       head指向: `[${LINKED_BLOCKS[block_id].nodes[0]}]`,
-      链表长度: LINKED_BLOCKS[block_id].nodes.length,
+      链表长度: LINKED_BLOCKS[block_id].size,
       起始逻辑位置: block_id * BLOCK_SIZE + 1
     },
     {
@@ -552,11 +653,12 @@ function generateLinkedSteps() {
       llBlock:     block_id,
       llCurrentNode: 0
     },
-    { phase: 'll', b: block_id, llPos: 0, stepNum, result: -1, block_id }
+    { phase: 'll', b: block_id, llPos: 0, block_id },
+    result
   ));
 
   // ── 第二步：遍历链表 ─────────────────────────────────────
-  // C code:
+  // EXACT C code:
   //   Node *p = linked_blocks[block_id].head;
   //   int pos = block_id * BLOCK_SIZE + 1;
   //   while (p) {
@@ -569,7 +671,9 @@ function generateLinkedSteps() {
   for (let nodeIdx = 0; nodeIdx < blockNodes.length; nodeIdx++) {
     const nodeVal = blockNodes[nodeIdx];
     const logicPos = block_id * BLOCK_SIZE + nodeIdx + 1; // 1-based logical position (matches C)
-    stepNum++;
+    result.block_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
     const isMatch = nodeVal === KEY;
 
     steps.push(mkStep(
@@ -591,7 +695,8 @@ function generateLinkedSteps() {
         [`p->data`]: nodeVal,
         [`p->data == key?`]: isMatch ? '是 ✓' : '否',
         逻辑位置: logicPos,
-        比较次数: stepNum
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares
       },
       {
         indexFound:    block_id,
@@ -603,10 +708,15 @@ function generateLinkedSteps() {
         arrayIndices:  isMatch ? []     : [IDX[block_id].start + nodeIdx],
         foundIndex:    isMatch ? IDX[block_id].start + nodeIdx : -1
       },
-      { phase: 'll', b: block_id, llPos: nodeIdx, stepNum, result: isMatch ? logicPos : -1, block_id }
+      { phase: 'll', b: block_id, llPos: nodeIdx, result: isMatch ? logicPos : -1, block_id },
+      result
     ));
 
-    if (isMatch) { found_pos = IDX[block_id].start + nodeIdx; break; }
+    if (isMatch) { 
+      found_pos = IDX[block_id].start + nodeIdx; 
+      result.position = logicPos;
+      break; 
+    }
   }
 
   // ── Summary ─────────────────────────────────────────────
@@ -617,7 +727,7 @@ function generateLinkedSteps() {
       ? `✅ 链式分块查找完成！关键字 ${KEY} 在第 ${block_id + 1} 块第 ${found_pos - IDX[block_id].start + 1} 个结点`
       : `❌ 查找失败，关键字 ${KEY} 不在链表中`,
     found_pos >= 0
-      ? `链式分块查找成功结束。总比较次数 = ${stepNum}（索引 ${block_id + 1} 次 + 链表遍历 ${stepNum - block_id - 1} 次）。` +
+      ? `链式分块查找成功结束。总比较次数 = ${result.total_compares}（索引 ${result.index_compares} 次 + 链表遍历 ${result.block_compares} 次）。` +
         `链式存储的主要优势：在块内任意位置插入/删除元素只需 O(1) 指针操作，不需要像顺序表那样移动元素；` +
         `代价是每个结点多占一个 next 指针的空间，且无法随机访问（只能顺序遍历）。` +
         `适合块内元素频繁动态变动的场景。`
@@ -626,9 +736,9 @@ function generateLinkedSteps() {
     {
       key: KEY,
       结果: found_pos >= 0 ? `逻辑位置 ${found_pos + 1}` : '未找到',
-      总比较次数: stepNum,
-      索引比较: block_id + 1,
-      链表遍历: stepNum - block_id - 1,
+      总比较次数: result.total_compares,
+      索引比较: result.index_compares,
+      链表遍历: result.block_compares,
       空间优劣: 'O(n) 链表结点'
     },
     {
@@ -638,7 +748,8 @@ function generateLinkedSteps() {
       llBlock:     block_id,
       llFoundNode: found_pos >= 0 ? found_pos - IDX[block_id].start : -1
     },
-    { phase: 'done', b: block_id, llPos: found_pos >= 0 ? found_pos - IDX[block_id].start : -1, stepNum, result: found_pos >= 0 ? found_pos + 1 : -1, block_id }
+    { phase: 'done', b: block_id, llPos: found_pos >= 0 ? found_pos - IDX[block_id].start : -1, result: found_pos >= 0 ? found_pos + 1 : -1, block_id },
+    result
   ));
 
   return steps;
@@ -874,10 +985,10 @@ function renderArrayVisual(step) {
         elem.classList.add('hl-current');
       }
 
-      // Index label (0-based shown, but using 0-based internally)
+      // Index label (1-based to match C output)
       const idxDiv = document.createElement('div');
       idxDiv.className = 'elem-idx';
-      idxDiv.textContent = arrIdx;  // 0-based index to match C array indexing
+      idxDiv.textContent = arrIdx + 1;  // 1-based index to match C output
 
       // Value box
       const valDiv = document.createElement('div');
@@ -955,7 +1066,7 @@ function renderIndexTable(step) {
     [
       b + 1,                    // 块号 (1-based for display)
       IDX[b].max_val,           // max_val
-      IDX[b].start,             // start (0-based)
+      IDX[b].start + 1,         // start (1-based to match C output)
       ARRAY.slice(IDX[b].start, IDX[b].start + BLOCK_SIZE).join(', ')
     ].forEach(val => {
       const td = tr.insertCell();
@@ -989,12 +1100,11 @@ function renderSequentialState(el, step) {
   const phase   = s.phase   || 'init';
   const b       = s.b;
   const pos     = s.pos;
-  const stepNum = s.stepNum || 0;
-  const result  = s.result  || -1;
+  const result  = step.searchResult || new SearchResult();
 
   const bActive     = (typeof b === 'number') ? ' active' : '';
   const posActive   = (typeof pos === 'number') ? ' active' : '';
-  const doneActive  = (phase === 'done' && result > 0) ? ' done' : '';
+  const doneActive  = (phase === 'done' && result.position > 0) ? ' done' : '';
 
   el.innerHTML = `
     <div class="phase-label-display">当前阶段：<span class="phase-badge">${escHtml(
@@ -1009,20 +1119,24 @@ function renderSequentialState(el, step) {
         <span class="state-value${bActive}">${typeof b === 'number' ? b : '—'}</span>
       </div>
       <div class="state-var">
-        <span class="state-label">当前数组位置<br>pos（0-based）</span>
+        <span class="state-label">当前数组位置<br>pos（1-based）</span>
         <span class="state-value${posActive}">${typeof pos === 'number' ? pos : '—'}</span>
       </div>
       <div class="state-var">
-        <span class="state-label">比较次数<br>stepNum</span>
-        <span class="state-value${stepNum > 0 ? ' active' : ''}">${stepNum}</span>
+        <span class="state-label">索引比较次数<br>index_compares</span>
+        <span class="state-value${result.index_compares > 0 ? ' active' : ''}">${result.index_compares}</span>
       </div>
       <div class="state-var">
-        <span class="state-label">结果位置<br>（1-based，-1=未找到）</span>
-        <span class="state-value${doneActive}">${result > 0 ? result : result === 0 ? 0 : '—'}</span>
+        <span class="state-label">块内比较次数<br>block_compares</span>
+        <span class="state-value${result.block_compares > 0 ? ' active' : ''}">${result.block_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">总比较次数<br>total_compares</span>
+        <span class="state-value${result.total_compares > 0 ? ' active' : ''}">${result.total_compares}</span>
       </div>
     </div>
-    ${result > 0
-      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 在位置 ${result}（1-based），0-based 下标 ${result - 1}</div>`
+    ${result.position > 0
+      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 在位置 ${result.position}（1-based），0-based 下标 ${result.position - 1}</div>`
       : phase === 'done'
         ? `<div class="result-summary result-failed">✗ 查找失败：关键字 ${KEY} 不在表中</div>`
         : ''}
@@ -1040,8 +1154,7 @@ function renderBinaryState(el, step) {
   const high    = s.high;
   const mid     = s.mid;
   const blockId = s.block_id;
-  const stepNum = s.stepNum || 0;
-  const result  = s.result  || -1;
+  const result  = step.searchResult || new SearchResult();
 
   el.innerHTML = `
     <div class="phase-label-display">当前阶段：<span class="phase-badge">${escHtml(
@@ -1067,13 +1180,23 @@ function renderBinaryState(el, step) {
         <span class="range-label">block_id</span>
         <span class="range-value block-val">${typeof blockId === 'number' && blockId >= 0 ? blockId : '—'}</span>
       </div>
-      <div class="range-item">
-        <span class="range-label">比较次数</span>
-        <span class="range-value" style="background:#f5f5f5;color:#333;border-color:#ddd">${stepNum}</span>
+    </div>
+    <div class="state-vars-row" style="margin-top:10px">
+      <div class="state-var">
+        <span class="state-label">索引比较次数<br>index_compares</span>
+        <span class="state-value${result.index_compares > 0 ? ' active' : ''}">${result.index_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">块内比较次数<br>block_compares</span>
+        <span class="state-value${result.block_compares > 0 ? ' active' : ''}">${result.block_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">总比较次数<br>total_compares</span>
+        <span class="state-value${result.total_compares > 0 ? ' active' : ''}">${result.total_compares}</span>
       </div>
     </div>
-    ${result > 0
-      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 在位置 ${result}（1-based）</div>`
+    ${result.position > 0
+      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 在位置 ${result.position}（1-based）</div>`
       : phase === 'done'
         ? `<div class="result-summary result-failed">✗ 查找失败</div>`
         : ''}
@@ -1090,8 +1213,7 @@ function renderLinkedState(el, step) {
   const b        = s.b;
   const llPos    = s.llPos;
   const blockId  = s.block_id;
-  const stepNum  = s.stepNum  || 0;
-  const result   = s.result   || -1;
+  const result   = step.searchResult || new SearchResult();
   const hl       = step.highlight;
 
   // Render mini linked-list for the active block
@@ -1138,13 +1260,21 @@ function renderLinkedState(el, step) {
         </span>
       </div>
       <div class="state-var">
-        <span class="state-label">比较次数<br>stepNum</span>
-        <span class="state-value${stepNum > 0 ? ' active' : ''}">${stepNum}</span>
+        <span class="state-label">索引比较次数<br>index_compares</span>
+        <span class="state-value${result.index_compares > 0 ? ' active' : ''}">${result.index_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">块内比较次数<br>block_compares</span>
+        <span class="state-value${result.block_compares > 0 ? ' active' : ''}">${result.block_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">总比较次数<br>total_compares</span>
+        <span class="state-value${result.total_compares > 0 ? ' active' : ''}">${result.total_compares}</span>
       </div>
     </div>
     ${llHtml}
-    ${result > 0
-      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 逻辑位置 ${result}（1-based）</div>`
+    ${result.position > 0
+      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 逻辑位置 ${result.position}（1-based）</div>`
       : phase === 'done'
         ? `<div class="result-summary result-failed">✗ 查找失败</div>`
         : ''}

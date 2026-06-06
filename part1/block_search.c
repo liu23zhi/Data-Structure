@@ -8,6 +8,7 @@
  *   1. 图形化展示分块查找过程（顺序查找 + 折半查找索引）
  *   2. 自动划分块、生成索引表的函数
  *   3. 将块改为链式（单链表）存储并实现查找
+ *   4. 统计查找次数，计算ASL成功和ASL不成功
  *
  * I/O 模式：
  *   [1] 屏幕交互模式 — 命令行输入查找关键字，屏幕输出结果
@@ -43,6 +44,14 @@ typedef struct {
 } IndexEntry;
 
 IndexEntry idx[NUM_BLOCKS];
+
+/* 查找结果结构体（包含查找次数） */
+typedef struct {
+    int position;       // 找到的位置（1-based），-1表示未找到
+    int index_compares; // 索引表比较次数
+    int block_compares; // 块内比较次数
+    int total_compares; // 总比较次数
+} SearchResult;
 
 /* ─────────────────────────────────────────────
    辅助：可视化函数
@@ -113,7 +122,7 @@ static void print_index_table(void)
 }
 
 /* ─────────────────────────────────────────────
-   任务2：自动划分块并产生索引
+   任务2：自动划分块并产生索引（完善版）
    ───────────────────────────────────────────── */
 void build_index(void)
 {
@@ -121,14 +130,26 @@ void build_index(void)
     fprintf(POUT, "【任务2】自动划分块并生成索引表\n");
     fprintf(POUT, "=================================================================\n");
 
+    fprintf(POUT, "\n  分块规则：\n");
+    fprintf(POUT, "    - 块长：%d\n", BLOCK_SIZE);
+    fprintf(POUT, "    - 块数：%d\n", NUM_BLOCKS);
+    fprintf(POUT, "    - 索引表项：(块内最大值, 块起始下标)\n");
+    fprintf(POUT, "    - 索引表按块内最大值有序排列\n\n");
+
     for (int b = 0; b < NUM_BLOCKS; b++) {
         int start = b * BLOCK_SIZE;
         int max   = a[start];
+        
+        fprintf(POUT, "  处理第%d块（下标 %d~%d）：", b + 1, start + 1, start + BLOCK_SIZE);
+        
         for (int i = start + 1; i < start + BLOCK_SIZE; i++) {
             if (a[i] > max) max = a[i];
         }
+        
         idx[b].max_val = max;
         idx[b].start   = start;
+        
+        fprintf(POUT, "最大值 = %d\n", max);
     }
 
     print_array_blocks();
@@ -136,10 +157,12 @@ void build_index(void)
 }
 
 /* ─────────────────────────────────────────────
-   任务1-A：顺序查找索引，再块内顺序查找
+   任务1-A：顺序查找索引，再块内顺序查找（完善版）
    ───────────────────────────────────────────── */
-int block_search_sequential_index(int key)
+SearchResult block_search_sequential_index(int key)
 {
+    SearchResult result = {-1, 0, 0, 0};
+    
     fprintf(POUT, "\n─────────────────────────────────────────────────────────────────\n");
     fprintf(POUT, "【任务1-A】分块查找（索引用顺序查找）  关键字 key = %d\n", key);
     fprintf(POUT, "─────────────────────────────────────────────────────────────────\n");
@@ -147,6 +170,7 @@ int block_search_sequential_index(int key)
     fprintf(POUT, "\n  ● 第一步：在索引表中顺序查找\n");
     int block_id = -1;
     for (int b = 0; b < NUM_BLOCKS; b++) {
+        result.index_compares++;
         fprintf(POUT, "    比较 key(%d) <= idx[%d].max(%d)? ", key, b + 1, idx[b].max_val);
         if (key <= idx[b].max_val) {
             fprintf(POUT, "是 → 关键字在第 %d 块\n", b + 1);
@@ -158,8 +182,11 @@ int block_search_sequential_index(int key)
     }
 
     if (block_id == -1) {
-        fprintf(POUT, "  ✗ 未找到对应块，查找失败\n\n");
-        return -1;
+        fprintf(POUT, "  ✗ 未找到对应块，查找失败\n");
+        result.total_compares = result.index_compares;
+        fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+               result.index_compares, result.block_compares, result.total_compares);
+        return result;
     }
 
     fprintf(POUT, "\n  ● 第二步：在第 %d 块（下标 %d~%d）中顺序查找\n",
@@ -176,26 +203,36 @@ int block_search_sequential_index(int key)
 
     for (int i = 0; i < BLOCK_SIZE; i++) {
         int pos = idx[block_id].start + i;
+        result.block_compares++;
         fprintf(POUT, "    比较 a[%d]=%d == key(%d)? ", pos + 1, a[pos], key);
         if (a[pos] == key) {
             fprintf(POUT, "是 → 查找成功！位置 = %d\n", pos + 1);
-            fprintf(POUT, "\n  ✓ 结果：关键字 %d 在顺序表第 %d 个位置（第 %d 块第 %d 个元素）\n\n",
+            result.position = pos + 1;
+            result.total_compares = result.index_compares + result.block_compares;
+            fprintf(POUT, "\n  ✓ 结果：关键字 %d 在顺序表第 %d 个位置（第 %d 块第 %d 个元素）\n",
                    key, pos + 1, block_id + 1, i + 1);
-            return pos + 1;
+            fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+                   result.index_compares, result.block_compares, result.total_compares);
+            return result;
         } else {
             fprintf(POUT, "否\n");
         }
     }
 
-    fprintf(POUT, "  ✗ 块内未找到，查找失败\n\n");
-    return -1;
+    fprintf(POUT, "  ✗ 块内未找到，查找失败\n");
+    result.total_compares = result.index_compares + result.block_compares;
+    fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+           result.index_compares, result.block_compares, result.total_compares);
+    return result;
 }
 
 /* ─────────────────────────────────────────────
-   任务1-B：折半查找索引，再块内顺序查找
+   任务1-B：折半查找索引，再块内顺序查找（完善版）
    ───────────────────────────────────────────── */
-int block_search_binary_index(int key)
+SearchResult block_search_binary_index(int key)
 {
+    SearchResult result = {-1, 0, 0, 0};
+    
     fprintf(POUT, "\n─────────────────────────────────────────────────────────────────\n");
     fprintf(POUT, "【任务1-B】分块查找（索引用折半查找）  关键字 key = %d\n", key);
     fprintf(POUT, "─────────────────────────────────────────────────────────────────\n");
@@ -207,6 +244,7 @@ int block_search_binary_index(int key)
 
     while (low <= high) {
         int mid = (low + high) / 2;
+        result.index_compares++;
         fprintf(POUT, "    [第%d次] low=%d, high=%d, mid=%d, idx[mid].max=%d → ",
                step++, low + 1, high + 1, mid + 1, idx[mid].max_val);
 
@@ -228,8 +266,11 @@ int block_search_binary_index(int key)
         if (low < NUM_BLOCKS) {
             block_id = low;
         } else {
-            fprintf(POUT, "  ✗ 超出索引范围，查找失败\n\n");
-            return -1;
+            fprintf(POUT, "  ✗ 超出索引范围，查找失败\n");
+            result.total_compares = result.index_compares;
+            fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+                   result.index_compares, result.block_compares, result.total_compares);
+            return result;
         }
     }
 
@@ -249,23 +290,31 @@ int block_search_binary_index(int key)
 
     for (int i = 0; i < BLOCK_SIZE; i++) {
         int pos = idx[block_id].start + i;
+        result.block_compares++;
         fprintf(POUT, "    比较 a[%d]=%d == key(%d)? ", pos + 1, a[pos], key);
         if (a[pos] == key) {
             fprintf(POUT, "是 → 查找成功！位置 = %d\n", pos + 1);
-            fprintf(POUT, "\n  ✓ 结果：关键字 %d 在顺序表第 %d 个位置（第 %d 块第 %d 个元素）\n\n",
+            result.position = pos + 1;
+            result.total_compares = result.index_compares + result.block_compares;
+            fprintf(POUT, "\n  ✓ 结果：关键字 %d 在顺序表第 %d 个位置（第 %d 块第 %d 个元素）\n",
                    key, pos + 1, block_id + 1, i + 1);
-            return pos + 1;
+            fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+                   result.index_compares, result.block_compares, result.total_compares);
+            return result;
         } else {
             fprintf(POUT, "否\n");
         }
     }
 
-    fprintf(POUT, "  ✗ 块内未找到，查找失败\n\n");
-    return -1;
+    fprintf(POUT, "  ✗ 块内未找到，查找失败\n");
+    result.total_compares = result.index_compares + result.block_compares;
+    fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+           result.index_compares, result.block_compares, result.total_compares);
+    return result;
 }
 
 /* ─────────────────────────────────────────────
-   任务3：链式存储（单链表）分块查找
+   任务3：链式存储（单链表）分块查找（完善版）
    ───────────────────────────────────────────── */
 
 typedef struct Node {
@@ -287,12 +336,14 @@ void build_linked_blocks(void)
     fprintf(POUT, "【任务3】链式（单链表）存储分块\n");
     fprintf(POUT, "=================================================================\n");
 
+    fprintf(POUT, "\n  构建过程：\n");
     for (int b = 0; b < NUM_BLOCKS; b++) {
         linked_blocks[b].max_val = 0;
         linked_blocks[b].head    = NULL;
         linked_blocks[b].size    = 0;
 
         Node *tail = NULL;
+        fprintf(POUT, "    第%d块：", b + 1);
         for (int i = b * BLOCK_SIZE; i < (b + 1) * BLOCK_SIZE; i++) {
             Node *p = (Node *)malloc(sizeof(Node));
             if (!p) { fprintf(stderr, "内存分配失败\n"); exit(1); }
@@ -308,7 +359,10 @@ void build_linked_blocks(void)
             if (a[i] > linked_blocks[b].max_val)
                 linked_blocks[b].max_val = a[i];
             linked_blocks[b].size++;
+            
+            fprintf(POUT, "%d ", a[i]);
         }
+        fprintf(POUT, "→ 最大值 = %d\n", linked_blocks[b].max_val);
     }
 
     fprintf(POUT, "\n  链式分块结构：\n\n");
@@ -328,13 +382,16 @@ void build_linked_blocks(void)
     fprintf(POUT, "  └────────┴──────────────────────────────────────────────────┘\n\n");
 }
 
-int linked_block_search(int key)
+SearchResult linked_block_search(int key)
 {
+    SearchResult result = {-1, 0, 0, 0};
+    
     fprintf(POUT, "  ● 链式分块查找  key = %d\n\n", key);
 
     fprintf(POUT, "    第一步：顺序查找索引表\n");
     int block_id = -1;
     for (int b = 0; b < NUM_BLOCKS; b++) {
+        result.index_compares++;
         fprintf(POUT, "      key(%d) <= linked_blocks[%d].max(%d)? ",
                key, b + 1, linked_blocks[b].max_val);
         if (key <= linked_blocks[b].max_val) {
@@ -347,28 +404,41 @@ int linked_block_search(int key)
     }
 
     if (block_id == -1) {
-        fprintf(POUT, "    ✗ 未找到对应块，查找失败\n\n");
-        return -1;
+        fprintf(POUT, "    ✗ 未找到对应块，查找失败\n");
+        result.total_compares = result.index_compares;
+        fprintf(POUT, "    📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+               result.index_compares, result.block_compares, result.total_compares);
+        return result;
     }
 
     fprintf(POUT, "\n    第二步：遍历第 %d 块链表\n", block_id + 1);
     Node *p = linked_blocks[block_id].head;
     int pos = block_id * BLOCK_SIZE + 1;
+    int node_num = 1;
     while (p) {
+        result.block_compares++;
         fprintf(POUT, "      检查结点 [%d] == key(%d)? ", p->data, key);
         if (p->data == key) {
             fprintf(POUT, "是 → 找到！逻辑位置 = %d\n", pos);
-            fprintf(POUT, "\n  ✓ 结果：关键字 %d 在链式存储第 %d 块的第 %d 个结点，逻辑位置 %d\n\n",
-                   key, block_id + 1, pos - block_id * BLOCK_SIZE, pos);
-            return pos;
+            result.position = pos;
+            result.total_compares = result.index_compares + result.block_compares;
+            fprintf(POUT, "\n  ✓ 结果：关键字 %d 在链式存储第 %d 块的第 %d 个结点，逻辑位置 %d\n",
+                   key, block_id + 1, node_num, pos);
+            fprintf(POUT, "  📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+                   result.index_compares, result.block_compares, result.total_compares);
+            return result;
         }
         fprintf(POUT, "否\n");
         p = p->next;
         pos++;
+        node_num++;
     }
 
-    fprintf(POUT, "    ✗ 块内链表未找到，查找失败\n\n");
-    return -1;
+    fprintf(POUT, "    ✗ 块内链表未找到，查找失败\n");
+    result.total_compares = result.index_compares + result.block_compares;
+    fprintf(POUT, "    📊 查找次数统计：索引表比较 %d 次，块内比较 %d 次，总计 %d 次\n\n",
+           result.index_compares, result.block_compares, result.total_compares);
+    return result;
 }
 
 void free_linked_blocks(void)
@@ -382,6 +452,56 @@ void free_linked_blocks(void)
         }
         linked_blocks[b].head = NULL;
     }
+}
+
+/* ─────────────────────────────────────────────
+   任务4：ASL平均查找长度计算
+   ───────────────────────────────────────────── */
+void calculate_asl(void)
+{
+    fprintf(POUT, "=================================================================\n");
+    fprintf(POUT, "【任务4】平均查找长度ASL计算\n");
+    fprintf(POUT, "=================================================================\n");
+
+    fprintf(POUT, "\n  一、基本概念\n");
+    fprintf(POUT, "    ASL（Average Search Length）：平均查找长度，指查找过程中关键字的平均比较次数\n");
+    fprintf(POUT, "    分块查找的ASL = 索引表查找的ASL + 块内查找的ASL\n\n");
+
+    fprintf(POUT, "  二、理论公式（等概率情况下）\n");
+    fprintf(POUT, "    1. 顺序查找索引表：\n");
+    fprintf(POUT, "       ASL成功 = (b+1)/2 + (s+1)/2 = (b+s+2)/2\n");
+    fprintf(POUT, "       ASL不成功 = b + s\n");
+    fprintf(POUT, "       其中：b = 块数，s = 块长\n\n");
+    
+    fprintf(POUT, "    2. 折半查找索引表：\n");
+    fprintf(POUT, "       ASL成功 = log2(b+1) - 1 + (s+1)/2\n");
+    fprintf(POUT, "       ASL不成功 = log2(b+1) + s\n\n");
+
+    fprintf(POUT, "  三、本实验参数\n");
+    fprintf(POUT, "    总元素数 n = %d\n", N);
+    fprintf(POUT, "    块数 b = %d\n", NUM_BLOCKS);
+    fprintf(POUT, "    块长 s = %d\n\n", BLOCK_SIZE);
+
+    fprintf(POUT, "  四、理论计算结果\n");
+    
+    // 顺序查找索引表
+    double asl_seq_success = (NUM_BLOCKS + 1.0)/2.0 + (BLOCK_SIZE + 1.0)/2.0;
+    double asl_seq_fail = NUM_BLOCKS + BLOCK_SIZE;
+    
+    fprintf(POUT, "    1. 顺序查找索引表：\n");
+    fprintf(POUT, "       ASL成功 = (5+1)/2 + (5+1)/2 = 3 + 3 = %.2f\n", asl_seq_success);
+    fprintf(POUT, "       ASL不成功 = 5 + 5 = %.2f\n\n", asl_seq_fail);
+    
+    // 折半查找索引表
+    double asl_bin_success = (log2(NUM_BLOCKS + 1.0) - 1.0) + (BLOCK_SIZE + 1.0)/2.0;
+    double asl_bin_fail = log2(NUM_BLOCKS + 1.0) + BLOCK_SIZE;
+    
+    fprintf(POUT, "    2. 折半查找索引表：\n");
+    fprintf(POUT, "       ASL成功 = log2(6) - 1 + (5+1)/2 ≈ 2.58 - 1 + 3 = %.2f\n", asl_bin_success);
+    fprintf(POUT, "       ASL不成功 = log2(6) + 5 ≈ 2.58 + 5 = %.2f\n\n", asl_bin_fail);
+
+    fprintf(POUT, "  五、实际测试结果（基于测试用例）\n");
+    fprintf(POUT, "    请运行测试用例模式查看实际查找次数统计\n\n");
 }
 
 /* ─────────────────────────────────────────────
@@ -408,6 +528,8 @@ static void run_all_searches(int key)
     linked_block_search(key);
     free_linked_blocks();
 
+    calculate_asl();
+
     fprintf(POUT, "*****************************************************************\n");
     fprintf(POUT, "*                     分块查找演示完毕                           *\n");
     fprintf(POUT, "*****************************************************************\n\n");
@@ -425,6 +547,7 @@ static void show_menu(void)
     printf("║  [1] 屏幕交互模式（命令行输入输出）            ║\n");
     printf("║  [2] 文件交互模式（文件输入输出）              ║\n");
     printf("║  [3] 运行测试用例                             ║\n");
+    printf("║  [4] 查看ASL理论计算                          ║\n");
     printf("║  [0] 退出程序                                 ║\n");
     printf("╠══════════════════════════════════════════════╣\n");
     printf("║  请输入选项: ");
@@ -445,6 +568,9 @@ static void screen_mode(void)
     printf("  请输入查找关键字（整数）: ");
     if (scanf("%d", &key) != 1) {
         printf("  输入无效\n");
+        /* 清除输入缓冲 */
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF);
         return;
     }
     run_all_searches(key);
@@ -520,6 +646,7 @@ static void file_mode(void)
      TC3  边界值   — key=100（最大元素，第5块）
      TC4  等价类   — key=50（不存在，值在第3块范围内）
      TC5  边界值   — key=0 （低于所有元素，查找失败）
+     TC6  边界值   — key=101（高于所有元素，查找失败）
    ───────────────────────────────────────────── */
 static void test_mode(void)
 {
@@ -529,6 +656,7 @@ static void test_mode(void)
         {100, "TC3 边界值   — key=100（最大元素，第5块）"},
         {50,  "TC4 等价类   — key=50（不存在，第3块范围）"},
         {0,   "TC5 边界值   — key=0 （低于所有元素）"},
+        {101, "TC6 边界值   — key=101（高于所有元素）"},
     };
     int num_cases = (int)(sizeof(cases) / sizeof(cases[0]));
 
@@ -548,6 +676,12 @@ static void test_mode(void)
         fprintf(fout, "========================================\n");
     }
 
+    // 统计ASL
+    double total_seq_success = 0, total_seq_fail = 0;
+    double total_bin_success = 0, total_bin_fail = 0;
+    double total_link_success = 0, total_link_fail = 0;
+    int success_count = 0, fail_count = 0;
+
     for (int i = 0; i < num_cases; i++) {
         printf("\n══════════════════════════════════════════\n");
         printf("  %s\n", cases[i].desc);
@@ -555,25 +689,96 @@ static void test_mode(void)
 
         /* 同时输出到屏幕和文件 */
         g_out = stdout;
-        run_all_searches(cases[i].key);
+        build_index();
+        SearchResult seq_res = block_search_sequential_index(cases[i].key);
+        SearchResult bin_res = block_search_binary_index(cases[i].key);
+        
+        build_linked_blocks();
+        SearchResult link_res = linked_block_search(cases[i].key);
+        free_linked_blocks();
+
+        // 统计
+        if (seq_res.position != -1) {
+            total_seq_success += seq_res.total_compares;
+            total_bin_success += bin_res.total_compares;
+            total_link_success += link_res.total_compares;
+            success_count++;
+        } else {
+            total_seq_fail += seq_res.total_compares;
+            total_bin_fail += bin_res.total_compares;
+            total_link_fail += link_res.total_compares;
+            fail_count++;
+        }
 
         if (fout) {
             fprintf(fout, "\n══════════════════════════════════════════\n");
             fprintf(fout, "  %s\n", cases[i].desc);
             fprintf(fout, "══════════════════════════════════════════\n");
             g_out = fout;
-            run_all_searches(cases[i].key);
+            build_index();
+            block_search_sequential_index(cases[i].key);
+            block_search_binary_index(cases[i].key);
+            
+            build_linked_blocks();
+            linked_block_search(cases[i].key);
+            free_linked_blocks();
         }
     }
 
+    // 输出实际ASL统计
+    printf("\n══════════════════════════════════════════\n");
+    printf("  实际ASL统计结果\n");
+    printf("══════════════════════════════════════════\n");
+    printf("  成功案例数：%d\n", success_count);
+    printf("  失败案例数：%d\n\n", fail_count);
+
+    if (success_count > 0) {
+        printf("  顺序查找索引表 ASL成功：%.2f\n", total_seq_success / success_count);
+        printf("  折半查找索引表 ASL成功：%.2f\n", total_bin_success / success_count);
+        printf("  链式存储查找 ASL成功：%.2f\n\n", total_link_success / success_count);
+    }
+
+    if (fail_count > 0) {
+        printf("  顺序查找索引表 ASL不成功：%.2f\n", total_seq_fail / fail_count);
+        printf("  折半查找索引表 ASL不成功：%.2f\n", total_bin_fail / fail_count);
+        printf("  链式存储查找 ASL不成功：%.2f\n\n", total_link_fail / fail_count);
+    }
+
     if (fout) {
+        fprintf(fout, "\n══════════════════════════════════════════\n");
+        fprintf(fout, "  实际ASL统计结果\n");
+        fprintf(fout, "══════════════════════════════════════════\n");
+        fprintf(fout, "  成功案例数：%d\n", success_count);
+        fprintf(fout, "  失败案例数：%d\n\n", fail_count);
+
+        if (success_count > 0) {
+            fprintf(fout, "  顺序查找索引表 ASL成功：%.2f\n", total_seq_success / success_count);
+            fprintf(fout, "  折半查找索引表 ASL成功：%.2f\n", total_bin_success / success_count);
+            fprintf(fout, "  链式存储查找 ASL成功：%.2f\n\n", total_link_success / success_count);
+        }
+
+        if (fail_count > 0) {
+            fprintf(fout, "  顺序查找索引表 ASL不成功：%.2f\n", total_seq_fail / fail_count);
+            fprintf(fout, "  折半查找索引表 ASL不成功：%.2f\n", total_bin_fail / fail_count);
+            fprintf(fout, "  链式存储查找 ASL不成功：%.2f\n\n", total_link_fail / fail_count);
+        }
+
         fprintf(fout, "========================================\n");
         fprintf(fout, "测试完毕\n");
         fprintf(fout, "========================================\n");
         fclose(fout);
         g_out = stdout;
-        printf("\n  ✓ 所有测试案例完成，结果已保存至 %s\n", OUTPUT_FILE);
+        printf("  ✓ 所有测试案例完成，结果已保存至 %s\n", OUTPUT_FILE);
     }
+}
+
+/* ─────────────────────────────────────────────
+   模式4：查看ASL理论计算
+   ───────────────────────────────────────────── */
+static void asl_mode(void)
+{
+    g_out = stdout;
+    calculate_asl();
 }
 
 /* ─────────────────────────────────────────────
@@ -600,11 +805,12 @@ int main(void)
             case 1: screen_mode(); break;
             case 2: file_mode();   break;
             case 3: test_mode();   break;
+            case 4: asl_mode();    break;
             case 0:
                 printf("\n  再见！\n\n");
                 return 0;
             default:
-                printf("\n  无效选项，请输入 0~3\n");
+                printf("\n  无效选项，请输入 0~4\n");
         }
     }
 }

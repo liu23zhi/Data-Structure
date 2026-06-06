@@ -4,7 +4,1058 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>分块查找算法可视化</title>
-  <link rel="stylesheet" href="block_search_visualizer.css">
+  <style>
+    /* block_search_visualizer.css */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-width: 1100px;
+    }
+
+    /* ===== HEADER ===== */
+    #app-header {
+      background: linear-gradient(135deg, #1a237e 0%, #283593 60%, #3949ab 100%);
+      color: white;
+      padding: 18px 36px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .header-content h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .header-subtitle {
+      font-size: 0.85rem;
+      opacity: 0.75;
+      margin-top: 4px;
+      font-family: 'Courier New', monospace;
+    }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .algo-badge {
+      display: inline-block;
+      padding: 3px 14px;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.45);
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .algo-brief {
+      font-size: 0.78rem;
+      opacity: 0.75;
+    }
+
+    /* ===== CONTROLS ===== */
+    #controls {
+      background: white;
+      border-bottom: 1px solid #ddd;
+      padding: 10px 36px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    }
+    .controls-inner {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .algo-tabs { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 7px 16px;
+      border: 2px solid #3949ab;
+      background: white;
+      color: #3949ab;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { background: #e8eaf6; }
+    .tab-btn.active { background: #3949ab; color: white; }
+
+    .playback-controls { display: flex; align-items: center; gap: 8px; }
+    .ctrl-btn {
+      padding: 7px 14px;
+      border: 1px solid #ccc;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: all 0.2s;
+    }
+    .ctrl-btn:hover:not(:disabled) { background: #f5f5f5; border-color: #999; }
+    .ctrl-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+    .ctrl-btn.primary { background: #388e3c; color: white; border-color: #388e3c; font-weight: 700; }
+    .ctrl-btn.primary:hover:not(:disabled) { background: #2e7d32; }
+    .ctrl-btn.primary.paused { background: #f57c00; border-color: #f57c00; }
+    #speed-select {
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      background: white;
+      cursor: pointer;
+    }
+
+    /* ===== MAIN LAYOUT ===== */
+    #main-content {
+      max-width: 1440px;
+      margin: 16px auto;
+      padding: 0 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ===== DATA DISPLAY (2 columns) ===== */
+    #data-display {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 14px;
+    }
+    .data-panel {
+      background: white;
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .panel-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #1a237e;
+      margin-bottom: 10px;
+      padding-bottom: 7px;
+      border-bottom: 2px solid #e8eaf6;
+    }
+
+    /* ===== ARRAY VISUALIZATION ===== */
+    .array-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+
+    /* One row of the array: block label + cells */
+    .array-block-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 0;
+    }
+
+    /* Colored label strip above each block group */
+    .block-group {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .block-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 3px 6px;
+      border-radius: 5px 5px 0 0;
+      letter-spacing: 0.03em;
+    }
+
+    /* Per-block background colors (light tints) */
+    .block-color-0 .block-label { background: #e3f2fd; color: #1565c0; }
+    .block-color-1 .block-label { background: #f3e5f5; color: #6a1b9a; }
+    .block-color-2 .block-label { background: #e8f5e9; color: #1b5e20; }
+    .block-color-3 .block-label { background: #fff3e0; color: #bf360c; }
+    .block-color-4 .block-label { background: #fce4ec; color: #880e4f; }
+
+    .block-color-0 .block-cells { background: #f3faff; border: 2px solid #bbdefb; border-top: none; border-radius: 0 0 5px 5px; }
+    .block-color-1 .block-cells { background: #fdf5ff; border: 2px solid #e1bee7; border-top: none; border-radius: 0 0 5px 5px; }
+    .block-color-2 .block-cells { background: #f5fff6; border: 2px solid #c8e6c9; border-top: none; border-radius: 0 0 5px 5px; }
+    .block-color-3 .block-cells { background: #fffcf5; border: 2px solid #ffe0b2; border-top: none; border-radius: 0 0 5px 5px; }
+    .block-color-4 .block-cells { background: #fff5f8; border: 2px solid #f8bbd0; border-top: none; border-radius: 0 0 5px 5px; }
+
+    /* Active block highlight (light blue overlay on the block-cells container) */
+    .block-group.block-active .block-cells {
+      background: #e1f5fe !important;
+      border-color: #29b6f6 !important;
+      box-shadow: 0 0 0 2px #29b6f6;
+    }
+    .block-group.block-active .block-label {
+      background: #29b6f6 !important;
+      color: white !important;
+    }
+
+    .block-cells {
+      display: flex;
+      padding: 4px 4px 4px 4px;
+      gap: 3px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    /* Individual element cell */
+    .array-element {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: default;
+      transition: transform 0.2s;
+    }
+    .array-element:hover { transform: translateY(-2px); }
+
+    .elem-idx {
+      font-size: 0.66rem;
+      color: #888;
+      background: #f0f0f0;
+      width: 36px;
+      text-align: center;
+      padding: 2px 0;
+      border-radius: 3px 3px 0 0;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+    .elem-val {
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      width: 36px;
+      height: 36px;
+      text-align: center;
+      line-height: 36px;
+      border: 2px solid #ddd;
+      border-radius: 0 0 3px 3px;
+      background: white;
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+
+    /* Highlight states for array elements */
+    .array-element.hl-current .elem-val {
+      background: #ff9800;
+      color: white;
+      border-color: #e65100;
+    }
+    .array-element.hl-current .elem-idx {
+      background: #ffe0b2;
+      color: #e65100;
+      border-color: #e65100;
+    }
+
+    .array-element.hl-found .elem-val {
+      background: #4caf50;
+      color: white;
+      border-color: #2e7d32;
+    }
+    .array-element.hl-found .elem-idx {
+      background: #c8e6c9;
+      color: #2e7d32;
+      border-color: #2e7d32;
+    }
+
+    /* Separator between blocks */
+    .block-separator {
+      width: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ===== INDEX TABLE ===== */
+    .index-table-wrap {
+      overflow: auto;
+    }
+    .index-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    .index-table thead th {
+      background: #1a237e;
+      color: white;
+      padding: 7px 10px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+    .index-table tbody td {
+      padding: 7px 10px;
+      text-align: center;
+      border-bottom: 1px solid #f0f0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.84rem;
+      transition: background 0.3s;
+    }
+    .index-table tbody tr:nth-child(even) { background: #fafafa; }
+
+    /* Highlighted index row – currently being examined (orange) */
+    .index-table tbody tr.hl-index-current td {
+      background: #fff3e0 !important;
+      border-left: 4px solid #ff9800;
+      font-weight: 700;
+      color: #e65100;
+    }
+
+    /* Confirmed block row (green) */
+    .index-table tbody tr.hl-index-found td {
+      background: #e8f5e9 !important;
+      border-left: 4px solid #4caf50;
+      font-weight: 700;
+      color: #1b5e20;
+    }
+
+    /* Binary search – low/high/mid markers */
+    .index-table tbody tr.hl-index-mid td {
+      background: #e3f2fd !important;
+      border-left: 4px solid #1976d2;
+      font-weight: 700;
+      color: #0d47a1;
+    }
+    .index-table tbody tr.hl-index-range td {
+      background: #f5f5f5 !important;
+      color: #777;
+    }
+
+    /* ===== LINKED LIST VISUALIZATION ===== */
+    .linked-list-visual {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0;
+      padding: 6px 0;
+    }
+    .ll-head-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #3949ab;
+      font-family: 'Courier New', monospace;
+      margin-right: 4px;
+      padding: 5px 8px;
+      background: #e8eaf6;
+      border-radius: 6px;
+    }
+    .ll-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 46px;
+      margin: 0 1px;
+      transition: transform 0.2s;
+    }
+    .ll-node:hover { transform: translateY(-2px); }
+    .ll-node-data {
+      font-family: 'Courier New', monospace;
+      font-size: 0.92rem;
+      font-weight: 700;
+      width: 40px;
+      height: 36px;
+      text-align: center;
+      line-height: 36px;
+      border: 2px solid #bdbdbd;
+      border-radius: 4px 4px 0 0;
+      background: white;
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+    .ll-node-ptr {
+      font-size: 0.62rem;
+      color: #888;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      width: 40px;
+      text-align: center;
+      padding: 2px 0;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Highlighted linked list node */
+    .ll-node.hl-ll-current .ll-node-data {
+      background: #ff9800;
+      color: white;
+      border-color: #e65100;
+    }
+    .ll-node.hl-ll-current .ll-node-ptr {
+      background: #ffe0b2;
+      color: #e65100;
+      border-color: #e65100;
+    }
+    .ll-node.hl-ll-found .ll-node-data {
+      background: #4caf50;
+      color: white;
+      border-color: #2e7d32;
+    }
+    .ll-node.hl-ll-found .ll-node-ptr {
+      background: #c8e6c9;
+      color: #2e7d32;
+      border-color: #2e7d32;
+    }
+
+    .ll-arrow {
+      font-size: 1.1rem;
+      color: #9e9e9e;
+      padding: 0 3px;
+      align-self: center;
+      margin-bottom: 10px;
+    }
+    .ll-null {
+      font-size: 0.8rem;
+      color: #9e9e9e;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      align-self: center;
+      margin-bottom: 10px;
+      padding: 4px 8px;
+      background: #f5f5f5;
+      border: 1px dashed #bdbdbd;
+      border-radius: 4px;
+    }
+
+    /* ===== STEP EXPLANATION ===== */
+    #step-explanation {
+      background: white;
+      border-radius: 10px;
+      padding: 18px 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-left: 4px solid #3949ab;
+    }
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    #step-title {
+      font-size: 1.08rem;
+      font-weight: 700;
+      color: #1a237e;
+    }
+    .step-counter {
+      font-size: 0.82rem;
+      color: #666;
+      white-space: nowrap;
+      background: #e8eaf6;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-left: 10px;
+    }
+    .step-phase-tag {
+      display: inline-block;
+      font-size: 0.76rem;
+      background: #f3e5f5;
+      color: #7b1fa2;
+      padding: 2px 10px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    #step-description {
+      font-size: 0.93rem;
+      line-height: 1.75;
+      color: #444;
+      margin-bottom: 12px;
+    }
+    .step-meta {
+      font-size: 0.83rem;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .meta-label { font-weight: 700; }
+    #step-function {
+      background: #fce4ec;
+      color: #c62828;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+    .step-variables {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 8px;
+    }
+    .var-chip {
+      display: inline-flex;
+      align-items: center;
+      background: #f3f4f6;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      font-size: 0.8rem;
+    }
+    .var-key {
+      padding: 3px 8px;
+      background: #e8eaf6;
+      color: #3949ab;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+    }
+    .var-val {
+      padding: 3px 8px;
+      font-family: 'Courier New', monospace;
+      color: #333;
+    }
+
+    /* ===== ALGORITHM STATE ===== */
+    #algorithm-state {
+      background: white;
+      border-radius: 10px;
+      padding: 18px 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .section-title {
+      font-size: 0.97rem;
+      font-weight: 700;
+      color: #1a237e;
+      margin-bottom: 14px;
+      padding-bottom: 7px;
+      border-bottom: 2px solid #e8eaf6;
+    }
+
+    /* State variable boxes */
+    .state-vars-row {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .state-var {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 88px;
+    }
+    .state-label {
+      font-size: 0.72rem;
+      color: #666;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .state-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      color: #555;
+      padding: 5px 12px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      min-width: 58px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+    .state-value.active {
+      background: #e3f2fd;
+      color: #1565c0;
+      border-color: #90caf9;
+    }
+    .state-value.done {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-color: #a5d6a7;
+    }
+
+    /* Phase badge shown inside algo state */
+    .phase-label-display {
+      font-size: 0.88rem;
+      margin-bottom: 12px;
+      color: #555;
+    }
+    .phase-badge {
+      display: inline-block;
+      padding: 2px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.83rem;
+      background: #e8eaf6;
+      color: #3949ab;
+    }
+
+    /* Complexity note inside state panel */
+    .complexity-note {
+      font-size: 0.8rem;
+      color: #795548;
+      background: #fff8e1;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border-left: 3px solid #ffc107;
+    }
+
+    /* Binary search range display */
+    .binary-range-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 12px;
+      flex-wrap: wrap;
+    }
+    .range-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 64px;
+    }
+    .range-label {
+      font-size: 0.7rem;
+      color: #888;
+      margin-bottom: 3px;
+    }
+    .range-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      padding: 4px 10px;
+      border-radius: 6px;
+      min-width: 46px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    .range-value.low-val  { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+    .range-value.high-val { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
+    .range-value.mid-val  { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+    .range-value.block-val { background: #f3e5f5; color: #7b1fa2; border-color: #ce93d8; }
+
+    /* Comparison count badge */
+    .cmp-count-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      background: #e8eaf6;
+      color: #3949ab;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    /* Result summary box */
+    .result-summary {
+      font-size: 0.9rem;
+      color: #1b5e20;
+      background: #e8f5e9;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border-left: 4px solid #4caf50;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+    .result-failed {
+      color: #b71c1c;
+      background: #ffebee;
+      border-left-color: #f44336;
+    }
+
+    /* Linked list blocks in state panel */
+    .ll-blocks-state {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .ll-block-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ll-block-max {
+      font-size: 0.76rem;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      min-width: 52px;
+      text-align: right;
+      color: #3949ab;
+    }
+    .ll-block-label {
+      font-size: 0.72rem;
+      color: #888;
+      min-width: 36px;
+    }
+
+    /* ===== COMPLEXITY TABLE ===== */
+    #complexity {
+      background: white;
+      border-radius: 10px;
+      padding: 18px 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+    .complexity-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    .complexity-table th {
+      background: #1a237e;
+      color: white;
+      padding: 9px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .complexity-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #e0e0e0;
+      vertical-align: top;
+    }
+    .complexity-table tbody tr:hover { background: #f5f5f5; }
+    .complexity-table tbody tr:nth-child(even) { background: #fafafa; }
+    .complexity-table td code {
+      font-family: 'Courier New', monospace;
+      background: #f3e5f5;
+      color: #6a1b9a;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .speedup { color: #2e7d32; font-weight: 700; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1200px) {
+      #data-display {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== DATA SOURCE PANEL ===== */
+    #data-source {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 14px 24px;
+    }
+    .source-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    #data-source .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1a237e;
+      margin: 0 0 10px;
+    }
+    .source-options {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .source-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .source-panel {
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+    .source-panel.hidden { display: none; }
+    .hidden { display: none; }
+
+    .manual-params-row,
+    .random-params-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .manual-params-row label,
+    .random-params-row label {
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .manual-params-row input[type="number"],
+    .random-params-row input[type="number"] {
+      width: 60px;
+      padding: 3px 6px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+    }
+    .manual-array-row {
+      margin-bottom: 6px;
+    }
+    .manual-array-row label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+    #manual-array-input {
+      width: 100%;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      padding: 6px 8px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      resize: vertical;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    /* ===== FILE I/O PANEL ===== */
+    #file-io {
+      background: #fff;
+      border-top: 2px solid #e0e0e0;
+      padding: 20px 24px;
+      margin-top: 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+    #file-io .section-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a237e;
+      margin: 0 0 14px;
+    }
+    .file-io-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 700px) {
+      .file-io-inner { grid-template-columns: 1fr; }
+    }
+    .file-io-group h4 {
+      font-size: 0.95rem;
+      margin: 0 0 6px;
+      color: #333;
+    }
+    .file-format-hint {
+      font-size: 0.78rem;
+      color: #888;
+      margin: 0 0 8px;
+    }
+    .file-display {
+      margin-top: 8px;
+    }
+    .file-display label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .file-display textarea {
+      width: 100%;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      box-sizing: border-box;
+      resize: vertical;
+      background: #fafafa;
+    }
+    .file-io-group input[type="file"] {
+      margin-bottom: 8px;
+    }
+    .file-io-group .ctrl-btn {
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    /* ASL 计算板块样式 */
+    .asl-calculation {
+      margin-top: 25px;
+      padding: 18px;
+      background-color: #f8f9fa;
+      border-left: 4px solid #4a90e2;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .asl-calculation h4 {
+      margin: 0 0 12px 0;
+      color: #2c3e50;
+      font-size: 1.1rem;
+    }
+
+    .asl-note {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 15px;
+    }
+
+    .asl-section {
+      margin-bottom: 20px;
+    }
+
+    .asl-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .asl-section h5 {
+      margin: 0 0 10px 0;
+      color: #34495e;
+      font-size: 1rem;
+    }
+
+    .asl-formula-block {
+      margin-left: 15px;
+      margin-bottom: 12px;
+    }
+
+    .asl-formula-block p {
+      margin: 6px 0;
+      font-size: 0.95rem;
+    }
+
+    .formula {
+      font-family: 'Courier New', Courier, monospace;
+      background-color: #e9ecef;
+      padding: 6px 12px;
+      border-radius: 4px;
+      display: inline-block;
+      color: #2d3436;
+      margin: 8px 0;
+    }
+
+    .formula-result {
+      font-weight: 600;
+      color: #27ae60;
+      font-size: 1rem !important;
+    }
+
+    /* 测试案例板块样式 */
+    #test-cases {
+      margin-top: 35px;
+      padding-top: 20px;
+      border-top: 2px solid #eee;
+    }
+
+    .test-intro {
+      margin-bottom: 25px;
+      padding: 15px;
+      background-color: #f0f7ff;
+      border-radius: 6px;
+    }
+
+    .test-intro h4 {
+      margin: 0 0 10px 0;
+      color: #2980b9;
+    }
+
+    .method-list {
+      font-size: 0.95rem;
+      color: #555;
+      margin-left: 20px;
+    }
+
+    .method-list li {
+      margin-bottom: 8px;
+    }
+
+    .test-case-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 22px;
+    }
+
+    .test-case-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.06);
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+
+    .test-case-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .case-header {
+      padding: 12px 18px;
+      color: white;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .case-header.success { background-color: #27ae60; }
+    .case-header.fail { background-color: #e74c3c; }
+    .case-header.boundary { background-color: #f39c12; }
+
+    .case-id {
+      font-family: 'Courier New', Courier, monospace;
+      background: rgba(255,255,255,0.25);
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-size: 0.9rem;
+    }
+
+    .case-type {
+      font-size: 0.95rem;
+    }
+
+    .case-body {
+      padding: 18px;
+      background-color: #fff;
+    }
+
+    .case-body p {
+      margin: 10px 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .case-note {
+      font-size: 0.85rem;
+      color: #7f8c8d;
+      margin-top: 15px;
+      padding-top: 12px;
+      border-top: 1px dashed #ddd;
+    }
+
+    /* 实际ASL统计结果样式 */
+    .actual-asl-results {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .actual-asl-results h4 {
+      margin: 0 0 12px 0;
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+
+    .asl-result-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .asl-result-row:last-child {
+      border-bottom: none;
+    }
+
+    .asl-result-label {
+      font-weight: 500;
+      color: #34495e;
+    }
+
+    .asl-result-value {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #2980b9;
+    }
+  </style>
 </head>
 <body>
 
@@ -106,7 +1157,7 @@
 
   <div class="test-case-grid">
     <!-- 测试案例 1：等价类 - 查找成功（块尾） -->
-    <div class="test-case-card">
+    <div class="test-case-card" data-key="10">
       <div class="case-header success">
         <span class="case-id">TC-001</span>
         <span class="case-type">等价类：查找成功（块尾）</span>
@@ -114,13 +1165,13 @@
       <div class="case-body">
         <p><strong>输入键</strong>：<code>10</code></p>
         <p><strong>预期结果</strong>：查找成功，位于第1块末尾</p>
-        <p><strong>查找次数</strong>：索引1次 + 块内5次 = <strong>6次</strong></p>
+        <p><strong>预期查找次数</strong>：索引1次 + 块内5次 = <strong>6次</strong></p>
         <p class="case-note">覆盖：有效等价类“键值存在且位于块的末尾位置”</p>
       </div>
     </div>
 
     <!-- 测试案例 2：边界值 - 最小/最大元素 -->
-    <div class="test-case-card">
+    <div class="test-case-card" data-key="6">
       <div class="case-header boundary">
         <span class="case-id">TC-002</span>
         <span class="case-type">边界值：数组极值</span>
@@ -128,7 +1179,7 @@
       <div class="case-body">
         <p><strong>输入键</strong>：<code>6</code>（最小） / <code>100</code>（最大）</p>
         <p><strong>预期结果</strong>：均查找成功</p>
-        <p><strong>查找次数</strong>：
+        <p><strong>预期查找次数</strong>：
           <br>- 键6：索引1次 + 块内3次 = <strong>4次</strong>
           <br>- 键100：索引5次 + 块内1次 = <strong>6次</strong>
         </p>
@@ -137,7 +1188,7 @@
     </div>
 
     <!-- 测试案例 3：等价类 - 查找失败（中间间隙） -->
-    <div class="test-case-card">
+    <div class="test-case-card" data-key="35">
       <div class="case-header fail">
         <span class="case-id">TC-003</span>
         <span class="case-type">等价类：查找失败（间隙）</span>
@@ -145,13 +1196,13 @@
       <div class="case-body">
         <p><strong>输入键</strong>：<code>35</code></p>
         <p><strong>预期结果</strong>：查找失败（介于第2块最大值34和第3块最大值66之间）</p>
-        <p><strong>查找次数</strong>：索引3次 + 块内5次 = <strong>8次</strong></p>
+        <p><strong>预期查找次数</strong>：索引3次 + 块内5次 = <strong>8次</strong></p>
         <p class="case-note">覆盖：无效等价类“键值在两块之间但不存在于数组中”</p>
       </div>
     </div>
 
     <!-- 测试案例 4：边界值 - 索引表边界 -->
-    <div class="test-case-card">
+    <div class="test-case-card" data-key="14">
       <div class="case-header boundary">
         <span class="case-id">TC-004</span>
         <span class="case-type">边界值：索引表键值</span>
@@ -159,13 +1210,71 @@
       <div class="case-body">
         <p><strong>输入键</strong>：<code>14</code>（索引表第1项） / <code>66</code>（索引表第3项）</p>
         <p><strong>预期结果</strong>：均查找成功</p>
-        <p><strong>查找次数</strong>：
+        <p><strong>预期查找次数</strong>：
           <br>- 键14：索引1次 + 块内2次 = <strong>3次</strong>
           <br>- 键66：索引3次 + 块内4次 = <strong>7次</strong>
         </p>
         <p class="case-note">覆盖：边界值“索引表中记录的块最大值”</p>
       </div>
     </div>
+
+    <!-- 测试案例 5：等价类 - 查找失败（小于最小值） -->
+    <div class="test-case-card" data-key="0">
+      <div class="case-header fail">
+        <span class="case-id">TC-005</span>
+        <span class="case-type">等价类：查找失败（小于最小值）</span>
+      </div>
+      <div class="case-body">
+        <p><strong>输入键</strong>：<code>0</code></p>
+        <p><strong>预期结果</strong>：查找失败（小于数组最小值6）</p>
+        <p><strong>预期查找次数</strong>：索引1次 + 块内0次 = <strong>1次</strong></p>
+        <p class="case-note">覆盖：无效等价类“键值小于数组所有元素”</p>
+      </div>
+    </div>
+
+    <!-- 测试案例 6：等价类 - 查找失败（大于最大值） -->
+    <div class="test-case-card" data-key="101">
+      <div class="case-header fail">
+        <span class="case-id">TC-006</span>
+        <span class="case-type">等价类：查找失败（大于最大值）</span>
+      </div>
+      <div class="case-body">
+        <p><strong>输入键</strong>：<code>101</code></p>
+        <p><strong>预期结果</strong>：查找失败（大于数组最大值100）</p>
+        <p><strong>预期查找次数</strong>：索引5次 + 块内0次 = <strong>5次</strong></p>
+        <p class="case-note">覆盖：无效等价类“键值大于数组所有元素”</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 实际ASL统计结果 -->
+  <div class="actual-asl-results" id="actual-asl-results">
+    <h4>实际ASL统计结果（基于所有测试案例）</h4>
+    <div class="asl-result-row">
+      <span class="asl-result-label">顺序索引查找 ASL成功：</span>
+      <span class="asl-result-value" id="seq-asl-success">—</span>
+    </div>
+    <div class="asl-result-row">
+      <span class="asl-result-label">顺序索引查找 ASL不成功：</span>
+      <span class="asl-result-value" id="seq-asl-fail">—</span>
+    </div>
+    <div class="asl-result-row">
+      <span class="asl-result-label">折半索引查找 ASL成功：</span>
+      <span class="asl-result-value" id="bin-asl-success">—</span>
+    </div>
+    <div class="asl-result-row">
+      <span class="asl-result-label">折半索引查找 ASL不成功：</span>
+      <span class="asl-result-value" id="bin-asl-fail">—</span>
+    </div>
+    <div class="asl-result-row">
+      <span class="asl-result-label">链式分块查找 ASL成功：</span>
+      <span class="asl-result-value" id="link-asl-success">—</span>
+    </div>
+    <div class="asl-result-row">
+      <span class="asl-result-label">链式分块查找 ASL不成功：</span>
+      <span class="asl-result-value" id="link-asl-fail">—</span>
+    </div>
+    <button id="btn-run-all-tests" class="ctrl-btn primary" style="margin-top:15px">▶ 运行所有测试案例并计算ASL</button>
   </div>
 </section>
 
@@ -216,7 +1325,6 @@
     </div>
   </section>
 
-  <!-- ===== 6. COMPLEXITY TABLE ===== -->
   <!-- ===== 6. COMPLEXITY & ASL ===== -->
 <section id="complexity">
   <h3 class="section-title">三种分块查找算法复杂度对比</h3>
@@ -259,22 +1367,22 @@
     </tbody>
   </table>
 
-  <!-- 新增：ASL 详细计算板块 -->
-  <div class="asl-calculation">
+  <!-- 动态ASL计算板块 -->
+  <div class="asl-calculation" id="dynamic-asl">
     <h4>平均查找长度（ASL）计算（等概率假设）</h4>
-    <p class="asl-note">参数说明：<code>b</code> = 块数（本例 5），<code>s</code> = 每块元素数（本例 5），<code>n</code> = 总元素数（本例 25）</p>
+    <p class="asl-note">参数说明：<code>b</code> = 块数（<span id="asl-b">5</span>），<code>s</code> = 每块元素数（<span id="asl-s">5</span>），<code>n</code> = 总元素数（<span id="asl-n">25</span>）</p>
 
     <div class="asl-section">
       <h5>1. 顺序索引分块查找（默认演示算法）</h5>
       <div class="asl-formula-block">
         <p><strong>ASL<sub>成功</sub></strong> = 索引查找平均次数 + 块内查找平均次数</p>
         <p class="formula">ASL<sub>成功</sub> = (b+1)/2 + (s+1)/2</p>
-        <p class="formula-result">代入数值：(5+1)/2 + (5+1)/2 = 3 + 3 = <strong>6</strong></p>
+        <p class="formula-result">代入数值：(<span id="seq-asl-b1">5</span>+1)/2 + (<span id="seq-asl-s1">5</span>+1)/2 = <span id="seq-asl-success-val">3</span> + <span id="seq-asl-success-val2">3</span> = <strong id="seq-asl-success-total">6</strong></p>
       </div>
       <div class="asl-formula-block">
         <p><strong>ASL<sub>不成功</sub></strong> = 索引查找平均次数 + 块内全遍历次数</p>
         <p class="formula">ASL<sub>不成功</sub> = (b+1)/2 + s</p>
-        <p class="formula-result">代入数值：(5+1)/2 + 5 = 3 + 5 = <strong>8</strong></p>
+        <p class="formula-result">代入数值：(<span id="seq-asl-b2">5</span>+1)/2 + <span id="seq-asl-s2">5</span> = <span id="seq-asl-fail-val">3</span> + <span id="seq-asl-fail-val2">5</span> = <strong id="seq-asl-fail-total">8</strong></p>
       </div>
     </div>
 
@@ -282,11 +1390,11 @@
       <h5>2. 折半索引分块查找（扩展算法）</h5>
       <div class="asl-formula-block">
         <p><strong>ASL<sub>成功</sub></strong> = ⌈log<sub>2</sub>(b+1)⌉ + (s+1)/2</p>
-        <p class="formula-result">代入数值：⌈log<sub>2</sub>6⌉ + (5+1)/2 = 3 + 3 = <strong>6</strong></p>
+        <p class="formula-result">代入数值：⌈log<sub>2</sub>(<span id="bin-asl-b1">5</span>+1)⌉ + (<span id="bin-asl-s1">5</span>+1)/2 = <span id="bin-asl-success-val">3</span> + <span id="bin-asl-success-val2">3</span> = <strong id="bin-asl-success-total">6</strong></p>
       </div>
       <div class="asl-formula-block">
         <p><strong>ASL<sub>不成功</sub></strong> ≈ log<sub>2</sub>(b+1) + s</p>
-        <p class="formula-result">代入数值：≈ 3 + 5 = <strong>8</strong></p>
+        <p class="formula-result">代入数值：≈ <span id="bin-asl-fail-val">3</span> + <span id="bin-asl-s2">5</span> = <strong id="bin-asl-fail-total">8</strong></p>
       </div>
     </div>
   </div>
@@ -324,6 +1432,1658 @@
 
 </main>
 
-<script src="block_search_visualizer.js"></script>
+<script>
+'use strict';
+
+// ============================================================
+//  DEFAULT DATA  —  EXACTLY matches part1/block_search.c
+// ============================================================
+
+const DEFAULT_ARRAY = [
+  8, 14,  6,  9, 10,
+ 22, 34, 18, 19, 31,
+ 40, 38, 54, 66, 46,
+ 71, 78, 68, 80, 85,
+100, 94, 88, 96, 87
+];
+const DEFAULT_BLOCK_SIZE = 5;
+const DEFAULT_NUM_BLOCKS = 5;
+const DEFAULT_KEY        = 46;
+
+let ARRAY      = [...DEFAULT_ARRAY];
+let BLOCK_SIZE = DEFAULT_BLOCK_SIZE;
+let NUM_BLOCKS = DEFAULT_NUM_BLOCKS;
+let KEY        = DEFAULT_KEY;
+
+let IDX          = [];
+let LINKED_BLOCKS = [];
+
+function rebuildDerived() {
+  IDX.length = 0;
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    const start = b * BLOCK_SIZE;
+    let max = ARRAY[start];
+    for (let i = start + 1; i < start + BLOCK_SIZE; i++) {
+      if (ARRAY[i] > max) max = ARRAY[i];
+    }
+    IDX.push({ max_val: max, start });
+  }
+  LINKED_BLOCKS.length = 0;
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    const nodes = [];
+    for (let i = b * BLOCK_SIZE; i < (b + 1) * BLOCK_SIZE; i++) {
+      nodes.push(ARRAY[i]);
+    }
+    LINKED_BLOCKS.push({ max_val: IDX[b].max_val, nodes, size: BLOCK_SIZE });
+  }
+  // 更新动态ASL计算
+  updateDynamicASL();
+}
+rebuildDerived();
+
+// ============================================================
+//  SEARCH RESULT STRUCT  —  matches C's SearchResult
+// ============================================================
+class SearchResult {
+  constructor() {
+    this.position = -1;       // 1-based position, -1 = not found
+    this.index_compares = 0;  // number of comparisons in index table
+    this.block_compares = 0;  // number of comparisons in block
+    this.total_compares = 0;  // total comparisons
+  }
+}
+
+// ============================================================
+//  STEP BUILDER HELPER
+// ============================================================
+
+/**
+ * Create a frozen step snapshot.
+ * Every field that a renderer might need is captured at the moment
+ * the step is generated, so the "player" can just render a stored state.
+ *
+ * @param {string} algorithm  - 'sequential' | 'binary' | 'linked'
+ * @param {string} phase      - short phase tag shown in the UI
+ * @param {string} title      - step title
+ * @param {string} desc       - detailed description
+ * @param {string} fn         - C function name
+ * @param {Object} variables  - key-value variable chips
+ * @param {Object} highlight  - which elements/rows to highlight
+ * @param {Object} algoState  - algorithm-specific state for the state panel
+ * @param {SearchResult} searchResult - current search result (matches C)
+ */
+function mkStep(algorithm, phase, title, desc, fn, variables, highlight, algoState, searchResult) {
+  return Object.freeze({
+    algorithm,
+    phase,
+    title,
+    description: desc,
+    functionName: fn,
+    variables: Object.assign({}, variables),
+    highlight: Object.assign(
+      {
+        arrayIndices: [],   // 0-based array indices being examined (orange)
+        foundIndex:   -1,   // 0-based index of found element (green), -1=none
+        activeBlock:  -1,   // 0-based block index highlighted (light blue), -1=none
+        indexRow:     -1,   // 0-based index table row examined (orange), -1=none
+        indexFound:   -1,   // 0-based index table row confirmed (green), -1=none
+        indexMid:     -1,   // 0-based index table mid row (blue, binary only)
+        indexRangeLow:  -1, // binary: current low bound (0-based)
+        indexRangeHigh: -1, // binary: current high bound (0-based)
+        llBlock:      -1,   // linked: which block's list is shown (-1=none)
+        llCurrentNode: -1,  // linked: 0-based node within block being examined
+        llFoundNode:   -1   // linked: 0-based node found (green)
+      },
+      highlight
+    ),
+    algoState: Object.assign({}, algoState),
+    searchResult: searchResult ? Object.assign({}, searchResult) : new SearchResult(),
+    stepIndex:  0,  // will be stamped by initApp()
+    totalSteps: 0   // will be stamped by initApp()
+  });
+}
+
+// ============================================================
+//  ALGORITHM 1:  block_search_sequential_index
+//  Logic: EXACTLY matches C code
+// ============================================================
+function generateSequentialSteps() {
+  const steps = [];
+  const FN = 'block_search_sequential_index';
+  const result = new SearchResult();
+
+  // ── Step 0: Initialisation ──────────────────────────────
+  steps.push(mkStep(
+    'sequential', '初始化',
+    '顺序索引分块查找 — 算法开始',
+    '分块查找（索引顺序查找）是一种介于顺序查找和折半查找之间的查找方法。' +
+    '基本思路：先建立索引表（每项记录各块的最大关键字和起始下标），' +
+    '查找时第一步在索引表中顺序扫描，找到关键字可能所在的块；' +
+    '第二步在该块内做顺序查找。本例：顺序表共 ' + ARRAY.length + ' 个元素，分为 ' + NUM_BLOCKS + ' 块，每块 ' + BLOCK_SIZE + ' 个元素，查找关键字 key = ' + KEY + '。',
+    FN,
+    { key: KEY, n: ARRAY.length, block_size: BLOCK_SIZE, num_blocks: NUM_BLOCKS },
+    {},
+    { phase: 'init', b: '—', pos: '—', stepNum: 0 },
+    result
+  ));
+
+  // ── 第一步：在索引表中顺序查找 ──────────────────────────
+  // EXACT C code: for (int b = 0; b < NUM_BLOCKS; b++) { if (key <= idx[b].max_val) ... }
+  let block_id = -1;
+
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    result.index_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
+    const found = KEY <= IDX[b].max_val;
+
+    steps.push(mkStep(
+      'sequential', `索引扫描 b=${b}`,
+      found
+        ? `✓ 索引命中！key(${KEY}) ≤ idx[${b}].max(${IDX[b].max_val}) → 关键字在第 ${b + 1} 块`
+        : `key(${KEY}) > idx[${b}].max(${IDX[b].max_val}) → 继续向后`,
+      found
+        ? `比较第 ${b + 1} 项索引：key = ${KEY} ≤ idx[${b}].max_val = ${IDX[b].max_val}，条件成立。` +
+          `关键字 ${KEY} 的最大可能所在块确定为第 ${b + 1} 块（数组下标 ${IDX[b].start + 1}~${IDX[b].start + BLOCK_SIZE}）。` +
+          `退出索引查找循环，准备进入块内顺序查找。`
+        : `比较第 ${b + 1} 项索引：key = ${KEY} > idx[${b}].max_val = ${IDX[b].max_val}，条件不成立。` +
+          `关键字不在第 ${b + 1} 块（该块最大元素为 ${IDX[b].max_val}，比 ${KEY} 小），继续扫描下一项。`,
+      FN,
+      {
+        key: KEY,
+        b: b,
+        [`idx[${b}].max_val`]: IDX[b].max_val,
+        [`key <= idx[${b}].max?`]: found ? '是 ✓' : '否',
+        索引比较次数: result.index_compares,
+        总比较次数: result.total_compares
+      },
+      {
+        indexRow:   found ? -1 : b,
+        indexFound: found ? b  : -1,
+        activeBlock: found ? b : -1
+      },
+      {
+        phase: 'index',
+        b,
+        pos: '—',
+        block_id: found ? b : -1
+      },
+      result
+    ));
+
+    if (found) { block_id = b; break; }
+  }
+
+  if (block_id === -1) {
+    steps.push(mkStep(
+      'sequential', '完成',
+      `❌ 查找失败，关键字 ${KEY} 不在表中`,
+      `未找到对应块，查找失败。遍历了全部索引表，共 ${result.index_compares} 次比较。`,
+      FN,
+      {
+        key: KEY,
+        结果: '未找到',
+        索引比较次数: result.index_compares,
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares
+      },
+      {},
+      { phase: 'done', b: '—', pos: '—', result: -1 },
+      result
+    ));
+    return steps;
+  }
+
+  // ── Announce entering block ─────────────────────────────
+  steps.push(mkStep(
+    'sequential', '进入块内查找',
+    `进入第 ${block_id + 1} 块，准备顺序查找（下标 ${IDX[block_id].start + 1}~${IDX[block_id].start + BLOCK_SIZE}）`,
+    `索引表确定关键字 ${KEY} 在第 ${block_id + 1} 块内（idx[${block_id}].start = ${IDX[block_id].start}，` +
+    `块大小 = ${BLOCK_SIZE}，元素范围：下标 ${IDX[block_id].start + 1} 到 ${IDX[block_id].start + BLOCK_SIZE}）。` +
+    `块内元素为 [${ARRAY.slice(IDX[block_id].start, IDX[block_id].start + BLOCK_SIZE).join(', ')}]。` +
+    `接下来对这 ${BLOCK_SIZE} 个元素逐一比较，时间复杂度 O(s) = O(${BLOCK_SIZE})。`,
+    FN,
+    {
+      block_id: block_id,
+      [`块 ${block_id + 1} 起始下标`]: IDX[block_id].start + 1,
+      [`块 ${block_id + 1} 元素`]: `[${ARRAY.slice(IDX[block_id].start, IDX[block_id].start + BLOCK_SIZE).join(',')}]`
+    },
+    {
+      activeBlock: block_id,
+      indexFound:  block_id
+    },
+    { phase: 'block', b: block_id, pos: IDX[block_id].start, block_id },
+    result
+  ));
+
+  // ── 第二步：块内顺序查找 ────────────────────────────────
+  // EXACT C code: for (int i = 0; i < BLOCK_SIZE; i++) { pos = idx[block_id].start + i; if (a[pos] == key) ... }
+  let found_pos = -1;
+  for (let i = 0; i < BLOCK_SIZE; i++) {
+    const pos = IDX[block_id].start + i;
+    result.block_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
+    const isMatch = ARRAY[pos] === KEY;
+
+    steps.push(mkStep(
+      'sequential', `块内比较 a[${pos + 1}]`,
+      isMatch
+        ? `🎉 查找成功！a[${pos + 1}] = ${ARRAY[pos]} == key(${KEY}) → 找到，位置 = ${pos + 1}（1-based）`
+        : `a[${pos + 1}] = ${ARRAY[pos]} ≠ key(${KEY}) → 继续`,
+      isMatch
+        ? `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：相等！查找成功。` +
+          `关键字 ${KEY} 位于顺序表第 ${pos + 1} 个位置（0-based 下标 ${pos}），` +
+          `即第 ${block_id + 1} 块第 ${i + 1} 个元素。总比较次数 = ${result.total_compares}（索引 ${result.index_compares} 次 + 块内 ${result.block_compares} 次）。`
+        : `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：不相等，继续检查下一个元素。` +
+          `当前在第 ${block_id + 1} 块第 ${i + 1} 个位置，还有 ${BLOCK_SIZE - i - 1} 个元素待检查。`,
+      FN,
+      {
+        key: KEY,
+        [`a[${pos + 1}]`]: ARRAY[pos],
+        [`a[${pos + 1}] == key?`]: isMatch ? '是 ✓' : '否',
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares,
+        block_id: block_id,
+        pos: pos + 1
+      },
+      {
+        arrayIndices: isMatch ? [] : [pos],
+        foundIndex:   isMatch ? pos : -1,
+        activeBlock:  block_id,
+        indexFound:   block_id
+      },
+      { phase: 'block', b: block_id, pos: pos + 1, result: isMatch ? pos + 1 : -1, block_id },
+      result
+    ));
+
+    if (isMatch) { 
+      found_pos = pos; 
+      result.position = pos + 1;
+      break; 
+    }
+  }
+
+  // ── Summary ─────────────────────────────────────────────
+  steps.push(mkStep(
+    'sequential', '完成',
+    found_pos >= 0
+      ? `✅ 顺序索引分块查找完成！关键字 ${KEY} 在位置 ${found_pos + 1}（1-based）`
+      : `❌ 查找失败，关键字 ${KEY} 不在表中`,
+    found_pos >= 0
+      ? `顺序索引分块查找成功结束。总比较次数 = ${result.total_compares}，包括：` +
+        `索引查找 ${result.index_compares} 次 + 块内查找 ${result.block_compares} 次。` +
+        `理论最优：b=${NUM_BLOCKS}，s=${BLOCK_SIZE} 时，顺序分块平均比较次数 ≈ (b+1)/2 + (s+1)/2 = ${(NUM_BLOCKS+1)/2} + ${(BLOCK_SIZE+1)/2} = ${(NUM_BLOCKS+BLOCK_SIZE+2)/2} 次。` +
+        `本次实际用了 ${result.total_compares} 次。`
+      : `查找失败。遍历了全部索引表和对应块，均未找到关键字 ${KEY}。`,
+    FN,
+    {
+      key: KEY,
+      结果: found_pos >= 0 ? `位置 ${found_pos + 1}` : '未找到',
+      总比较次数: result.total_compares,
+      索引比较次数: result.index_compares,
+      块内比较次数: result.block_compares
+    },
+    {
+      foundIndex:  found_pos,
+      activeBlock: block_id,
+      indexFound:  block_id
+    },
+    { phase: 'done', b: block_id, pos: found_pos + 1, result: found_pos >= 0 ? found_pos + 1 : -1, block_id },
+    result
+  ));
+
+  return steps;
+}
+
+// ============================================================
+//  ALGORITHM 2:  block_search_binary_index
+//  Logic: EXACTLY matches C code
+// ============================================================
+function generateBinarySteps() {
+  const steps = [];
+  const FN = 'block_search_binary_index';
+  const result = new SearchResult();
+
+  // ── Step 0: Initialisation ──────────────────────────────
+  steps.push(mkStep(
+    'binary', '初始化',
+    '折半索引分块查找 — 算法开始',
+    '折半索引分块查找改进了第一阶段：使用折半查找（二分查找）在索引表中定位块，' +
+    '将第一阶段时间复杂度从 O(b) 降为 O(log b)，第二阶段仍使用块内顺序查找 O(s)。' +
+    '总时间复杂度 O(log b + s)。本例：b = ' + NUM_BLOCKS + '，⌈log₂' + NUM_BLOCKS + '⌉ = ' + Math.ceil(Math.log2(NUM_BLOCKS+1)) + '，s = ' + BLOCK_SIZE + '，最多 ' + (Math.ceil(Math.log2(NUM_BLOCKS+1)) + BLOCK_SIZE) + ' 次比较。' +
+    '当 b 较大时，折半索引优势明显。key = ' + KEY + '，索引表共 ' + NUM_BLOCKS + ' 项。',
+    FN,
+    {
+      key: KEY,
+      low: 0,
+      high: NUM_BLOCKS - 1,
+      block_id: -1,
+      b: NUM_BLOCKS,
+      s: BLOCK_SIZE
+    },
+    {},
+    { phase: 'init', low: 0, high: NUM_BLOCKS - 1, mid: '—', block_id: -1 },
+    result
+  ));
+
+  // ── 第一步：折半查找索引表 ──────────────────────────────
+  // EXACT C code:
+  //   int low = 0, high = NUM_BLOCKS - 1, block_id = -1;
+  //   while (low <= high) {
+  //     int mid = (low + high) / 2;
+  //     if (key == idx[mid].max_val)      { block_id = mid; break; }
+  //     else if (key < idx[mid].max_val)  { high = mid - 1; block_id = mid; }
+  //     else                              { low = mid + 1; }
+  //   }
+  let low = 0, high = NUM_BLOCKS - 1, block_id = -1;
+  let binaryStep = 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    result.index_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+
+    let direction, explanation, newLow = low, newHigh = high, newBlockId = block_id;
+
+    if (KEY === IDX[mid].max_val) {
+      direction   = 'equal';
+      newBlockId  = mid;
+      explanation = `key(${KEY}) == idx[${mid}].max_val(${IDX[mid].max_val})，精确命中第 ${mid + 1} 块！`;
+    } else if (KEY < IDX[mid].max_val) {
+      direction  = 'left';
+      newHigh    = mid - 1;
+      newBlockId = mid;  // key < max[mid], so key may be in block mid
+      explanation = `key(${KEY}) < idx[${mid}].max_val(${IDX[mid].max_val})，向左缩小范围；` +
+                    `同时记录 block_id = ${mid}（key 可能在此块中），high 更新为 ${newHigh}。`;
+    } else {
+      direction  = 'right';
+      newLow     = mid + 1;
+      explanation = `key(${KEY}) > idx[${mid}].max_val(${IDX[mid].max_val})，` +
+                    `key 不在第 ${mid + 1} 块及其左侧，向右缩小范围；low 更新为 ${newLow}。`;
+    }
+
+    steps.push(mkStep(
+      'binary', `折半查找第 ${binaryStep} 次`,
+      direction === 'equal'
+        ? `✓ 精确命中 mid=${mid}！idx[${mid}].max = ${IDX[mid].max_val} == key(${KEY})`
+        : direction === 'left'
+          ? `key < mid → 向左，high = ${newHigh}，block_id = ${mid}`
+          : `key > mid → 向右，low = ${newLow}`,
+      `第 ${binaryStep} 次折半：low=${low}, high=${high}, mid=${mid}（idx[mid].max_val=${IDX[mid].max_val}）。${explanation}`,
+      FN,
+      {
+        low,
+        high,
+        mid,
+        [`idx[${mid}].max_val`]: IDX[mid].max_val,
+        key: KEY,
+        方向: direction === 'equal' ? '精确命中' : direction === 'left' ? '向左 (key < max)' : '向右 (key > max)',
+        block_id: newBlockId,
+        索引比较次数: result.index_compares,
+        总比较次数: result.total_compares
+      },
+      {
+        indexMid:       mid,
+        indexRangeLow:  low,
+        indexRangeHigh: high,
+        indexFound:     direction === 'equal' ? mid : newBlockId,
+        activeBlock:    direction === 'equal' ? mid : newBlockId
+      },
+      {
+        phase: 'index',
+        low,
+        high,
+        mid,
+        block_id: newBlockId
+      },
+      result
+    ));
+
+    low      = newLow;
+    high     = newHigh;
+    block_id = newBlockId;
+    binaryStep++;
+
+    if (direction === 'equal') break;
+  }
+
+  // EXACT C code: if (block_id == -1) { if (low < NUM_BLOCKS) { block_id = low; } else { ... } }
+  if (block_id === -1) {
+    if (low < NUM_BLOCKS) {
+      block_id = low;
+    } else {
+      steps.push(mkStep(
+        'binary', '完成',
+        `❌ 查找失败，关键字 ${KEY} 不在表中`,
+        `超出索引范围，查找失败。折半查找共 ${result.index_compares} 次比较。`,
+        FN,
+        {
+          key: KEY,
+          结果: '未找到',
+          索引比较次数: result.index_compares,
+          块内比较次数: result.block_compares,
+          总比较次数: result.total_compares
+        },
+        {},
+        { phase: 'done', low, high, mid: '—', result: -1 },
+        result
+      ));
+      return steps;
+    }
+  }
+
+  // ── Announce block identified ────────────────────────────
+  steps.push(mkStep(
+    'binary', '确认目标块',
+    `折半查找结束 — 确定关键字可能在第 ${block_id + 1} 块`,
+    `折半查找循环结束（low=${low} > high=${high}）。根据 C 代码逻辑，` +
+    `block_id = ${block_id}（第 ${block_id + 1} 块）。` +
+    `索引折半查找共做了 ${result.index_compares} 次比较，远少于顺序扫描的最多 ${NUM_BLOCKS} 次（本例）。` +
+    `接下来进入第 ${block_id + 1} 块（下标 ${IDX[block_id].start + 1}~${IDX[block_id].start + BLOCK_SIZE}）做顺序查找。`,
+    FN,
+    {
+      block_id: block_id,
+      low,
+      high,
+      索引比较次数: result.index_compares,
+      [`块 ${block_id + 1} 范围`]: `[${IDX[block_id].start + 1}, ${IDX[block_id].start + BLOCK_SIZE}]`
+    },
+    {
+      indexFound:  block_id,
+      activeBlock: block_id
+    },
+    { phase: 'block', low, high, mid: '—', block_id },
+    result
+  ));
+
+  // ── 第二步：块内顺序查找（与 sequential 相同逻辑） ──────
+  let found_pos = -1;
+  for (let i = 0; i < BLOCK_SIZE; i++) {
+    const pos = IDX[block_id].start + i;
+    result.block_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
+    const isMatch = ARRAY[pos] === KEY;
+
+    steps.push(mkStep(
+      'binary', `块内比较 a[${pos + 1}]`,
+      isMatch
+        ? `🎉 查找成功！a[${pos + 1}] = ${ARRAY[pos]} == key(${KEY}) → 位置 ${pos + 1}`
+        : `a[${pos + 1}] = ${ARRAY[pos]} ≠ key(${KEY}) → 继续`,
+      isMatch
+        ? `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：相等！查找成功。` +
+          `关键字 ${KEY} 位于顺序表第 ${pos + 1} 个位置（0-based 下标 ${pos}），` +
+          `即第 ${block_id + 1} 块第 ${i + 1} 个元素。` +
+          `总比较次数：索引折半 ${result.index_compares} 次 + 块内顺序 ${result.block_compares} 次 = ${result.total_compares} 次。`
+        : `比较 a[${pos + 1}] = ${ARRAY[pos]} 与 key = ${KEY}：不相等，继续。` +
+          `当前在第 ${block_id + 1} 块第 ${i + 1} 个位置，还剩 ${BLOCK_SIZE - i - 1} 个。`,
+      FN,
+      {
+        key: KEY,
+        [`a[${pos + 1}]`]: ARRAY[pos],
+        [`a[${pos + 1}] == key?`]: isMatch ? '是 ✓' : '否',
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares,
+        block_id
+      },
+      {
+        arrayIndices: isMatch ? [] : [pos],
+        foundIndex:   isMatch ? pos : -1,
+        activeBlock:  block_id,
+        indexFound:   block_id
+      },
+      { phase: 'block', low, high, block_id, pos: pos + 1, result: isMatch ? pos + 1 : -1 },
+      result
+    ));
+
+    if (isMatch) { 
+      found_pos = pos; 
+      result.position = pos + 1;
+      break; 
+    }
+  }
+
+  // ── Summary ─────────────────────────────────────────────
+  steps.push(mkStep(
+    'binary', '完成',
+    found_pos >= 0
+      ? `✅ 折半索引分块查找完成！关键字 ${KEY} 在位置 ${found_pos + 1}（1-based）`
+      : `❌ 查找失败，关键字 ${KEY} 不在表中`,
+    found_pos >= 0
+      ? `折半索引分块查找成功结束。总比较次数 = ${result.total_compares}，包括：` +
+        `索引折半 ${result.index_compares} 次 + 块内顺序 ${result.block_compares} 次。` +
+        `对比顺序索引查找，折半索引节省了索引阶段的比较开销。` +
+        `当 b 很大时（如 b=1000），折半索引优势更加显著（log₂1000 ≈ 10 vs 顺序最多 1000）。`
+      : `查找失败。`,
+    FN,
+    {
+      key: KEY,
+      结果: found_pos >= 0 ? `位置 ${found_pos + 1}` : '未找到',
+      总比较次数: result.total_compares,
+      索引折半次数: result.index_compares,
+      块内顺序次数: result.block_compares
+    },
+    {
+      foundIndex:  found_pos,
+      activeBlock: block_id,
+      indexFound:  block_id
+    },
+    { phase: 'done', block_id, pos: found_pos + 1, result: found_pos >= 0 ? found_pos + 1 : -1 },
+    result
+  ));
+
+  return steps;
+}
+
+// ============================================================
+//  ALGORITHM 3:  linked_block_search
+//  Logic: EXACTLY matches C code
+// ============================================================
+function generateLinkedSteps() {
+  const steps = [];
+  const FN = 'linked_block_search';
+  const result = new SearchResult();
+
+  // ── Step 0: Intro ───────────────────────────────────────
+  steps.push(mkStep(
+    'linked', '初始化',
+    '链式分块查找 — 算法开始',
+    '链式分块查找将每个块内的元素改用单链表存储（尾插法保持块内原有顺序，' +
+    '对应 C 代码 build_linked_blocks() 中的 tail = NULL; for(...) { p->next = NULL; tail->next = p; }）。' +
+    '索引表中每项由 max_val 和指向链表头结点的指针 head 组成（C 中是 LinkedBlock 结构）。' +
+    '查找时：第一步顺序扫描索引表确定块（与 sequential 相同）；' +
+    '第二步沿链表指针 p = p->next 遍历，逐个比较结点的 data 域。' +
+    '优点：支持块内元素的动态插入/删除，无需移动其他元素。' +
+    '代价：每个结点需要额外的 next 指针，空间复杂度 O(n)。',
+    FN,
+    {
+      key: KEY,
+      n: ARRAY.length,
+      存储结构: '单链表（每块一条）',
+      block_size: BLOCK_SIZE,
+      num_blocks: NUM_BLOCKS
+    },
+    {},
+    { phase: 'init', b: '—', llPos: '—' },
+    result
+  ));
+
+  // ── 第一步：顺序扫描索引（与 sequential_index 相同逻辑）────
+  let block_id = -1;
+
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    result.index_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
+    const found = KEY <= LINKED_BLOCKS[b].max_val;
+
+    steps.push(mkStep(
+      'linked', `索引扫描 b=${b}`,
+      found
+        ? `✓ 找到块！key(${KEY}) ≤ linked_blocks[${b}].max(${LINKED_BLOCKS[b].max_val}) → 第 ${b + 1} 块`
+        : `key(${KEY}) > linked_blocks[${b}].max(${LINKED_BLOCKS[b].max_val}) → 继续`,
+      found
+        ? `比较 key = ${KEY} 与 linked_blocks[${b}].max_val = ${LINKED_BLOCKS[b].max_val}：` +
+          `key ≤ max，关键字在第 ${b + 1} 块链表中。接下来获取该块链表的头指针 head，开始遍历。`
+        : `比较 key = ${KEY} 与 linked_blocks[${b}].max_val = ${LINKED_BLOCKS[b].max_val}：` +
+          `key > max，不在第 ${b + 1} 块，继续扫描下一项。`,
+      FN,
+      {
+        key: KEY,
+        b,
+        [`linked_blocks[${b}].max_val`]: LINKED_BLOCKS[b].max_val,
+        [`key <= max?`]: found ? '是 ✓' : '否',
+        索引比较次数: result.index_compares,
+        总比较次数: result.total_compares
+      },
+      {
+        indexRow:    found ? -1 : b,
+        indexFound:  found ? b  : -1,
+        activeBlock: found ? b  : -1
+      },
+      { phase: 'index', b, llPos: '—', block_id: found ? b : -1 },
+      result
+    ));
+
+    if (found) { block_id = b; break; }
+  }
+
+  if (block_id === -1) {
+    steps.push(mkStep(
+      'linked', '完成',
+      `❌ 查找失败，关键字 ${KEY} 不在表中`,
+      `未找到对应块，查找失败。遍历了全部索引表，共 ${result.index_compares} 次比较。`,
+      FN,
+      {
+        key: KEY,
+        结果: '未找到',
+        索引比较次数: result.index_compares,
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares
+      },
+      {},
+      { phase: 'done', b: '—', llPos: '—', result: -1 },
+      result
+    ));
+    return steps;
+  }
+
+  // ── Announce linked list traversal ──────────────────────
+  steps.push(mkStep(
+    'linked', '进入链表遍历',
+    `进入第 ${block_id + 1} 块链表，head → [${LINKED_BLOCKS[block_id].nodes[0]}] → ...`,
+    `索引表确认关键字 ${KEY} 在第 ${block_id + 1} 块链表中。` +
+    `C 代码：Node *p = linked_blocks[${block_id}].head; int pos = ${block_id} * BLOCK_SIZE + 1;` +
+    `链表结构：HEAD → [${LINKED_BLOCKS[block_id].nodes.join('] → [')}] → NULL。` +
+    `接下来逐个检查结点的 data 字段，p = p->next 向后遍历。`,
+    FN,
+    {
+      block_id,
+      head指向: `[${LINKED_BLOCKS[block_id].nodes[0]}]`,
+      链表长度: LINKED_BLOCKS[block_id].size,
+      起始逻辑位置: block_id * BLOCK_SIZE + 1
+    },
+    {
+      indexFound:  block_id,
+      activeBlock: block_id,
+      llBlock:     block_id,
+      llCurrentNode: 0
+    },
+    { phase: 'll', b: block_id, llPos: 0, block_id },
+    result
+  ));
+
+  // ── 第二步：遍历链表 ─────────────────────────────────────
+  // EXACT C code:
+  //   Node *p = linked_blocks[block_id].head;
+  //   int pos = block_id * BLOCK_SIZE + 1;
+  //   while (p) {
+  //     if (p->data == key) { return pos; }
+  //     p = p->next; pos++;
+  //   }
+  const blockNodes = LINKED_BLOCKS[block_id].nodes;
+  let found_pos = -1;
+
+  for (let nodeIdx = 0; nodeIdx < blockNodes.length; nodeIdx++) {
+    const nodeVal = blockNodes[nodeIdx];
+    const logicPos = block_id * BLOCK_SIZE + nodeIdx + 1; // 1-based logical position (matches C)
+    result.block_compares++;
+    result.total_compares = result.index_compares + result.block_compares;
+    
+    const isMatch = nodeVal === KEY;
+
+    steps.push(mkStep(
+      'linked', `链表结点 [${nodeVal}]`,
+      isMatch
+        ? `🎉 查找成功！结点 [${nodeVal}] == key(${KEY}) → 逻辑位置 = ${logicPos}`
+        : `结点 [${nodeVal}] ≠ key(${KEY}) → p = p->next`,
+      isMatch
+        ? `检查结点 p->data = ${nodeVal}，与 key = ${KEY} 相等！查找成功。` +
+          `逻辑位置 pos = ${logicPos}，即第 ${block_id + 1} 块第 ${nodeIdx + 1} 个结点。` +
+          `与数组存储相比，链表无法随机访问，但支持 O(1) 的结点插入/删除（只需修改指针）。`
+        : `检查结点 p->data = ${nodeVal}，与 key = ${KEY} 不相等，执行 p = p->next，pos++ → pos = ${logicPos + 1}。` +
+          (blockNodes[nodeIdx + 1] !== undefined
+            ? `下一个结点值为 [${blockNodes[nodeIdx + 1]}]。`
+            : '这是该块链表的最后一个结点，之后 p = NULL，查找失败。'),
+      FN,
+      {
+        key: KEY,
+        [`p->data`]: nodeVal,
+        [`p->data == key?`]: isMatch ? '是 ✓' : '否',
+        逻辑位置: logicPos,
+        块内比较次数: result.block_compares,
+        总比较次数: result.total_compares
+      },
+      {
+        indexFound:    block_id,
+        activeBlock:   block_id,
+        llBlock:       block_id,
+        llCurrentNode: isMatch ? -1   : nodeIdx,
+        llFoundNode:   isMatch ? nodeIdx : -1,
+        // Also highlight corresponding array element
+        arrayIndices:  isMatch ? []     : [IDX[block_id].start + nodeIdx],
+        foundIndex:    isMatch ? IDX[block_id].start + nodeIdx : -1
+      },
+      { phase: 'll', b: block_id, llPos: nodeIdx, result: isMatch ? logicPos : -1, block_id },
+      result
+    ));
+
+    if (isMatch) { 
+      found_pos = IDX[block_id].start + nodeIdx; 
+      result.position = logicPos;
+      break; 
+    }
+  }
+
+  // ── Summary ─────────────────────────────────────────────
+  const logicFoundPos = found_pos >= 0 ? found_pos + 1 : -1;
+  steps.push(mkStep(
+    'linked', '完成',
+    found_pos >= 0
+      ? `✅ 链式分块查找完成！关键字 ${KEY} 在第 ${block_id + 1} 块第 ${found_pos - IDX[block_id].start + 1} 个结点`
+      : `❌ 查找失败，关键字 ${KEY} 不在链表中`,
+    found_pos >= 0
+      ? `链式分块查找成功结束。总比较次数 = ${result.total_compares}（索引 ${result.index_compares} 次 + 链表遍历 ${result.block_compares} 次）。` +
+        `链式存储的主要优势：在块内任意位置插入/删除元素只需 O(1) 指针操作，不需要像顺序表那样移动元素；` +
+        `代价是每个结点多占一个 next 指针的空间，且无法随机访问（只能顺序遍历）。` +
+        `适合块内元素频繁动态变动的场景。`
+      : `查找失败。遍历了全部索引和链表结点，未找到关键字 ${KEY}。`,
+    FN,
+    {
+      key: KEY,
+      结果: found_pos >= 0 ? `逻辑位置 ${found_pos + 1}` : '未找到',
+      总比较次数: result.total_compares,
+      索引比较: result.index_compares,
+      链表遍历: result.block_compares,
+      空间优劣: 'O(n) 链表结点'
+    },
+    {
+      foundIndex:  found_pos,
+      activeBlock: block_id,
+      indexFound:  block_id,
+      llBlock:     block_id,
+      llFoundNode: found_pos >= 0 ? found_pos - IDX[block_id].start : -1
+    },
+    { phase: 'done', b: block_id, llPos: found_pos >= 0 ? found_pos - IDX[block_id].start : -1, result: found_pos >= 0 ? found_pos + 1 : -1, block_id },
+    result
+  ));
+
+  return steps;
+}
+
+// ============================================================
+//  APP STATE
+// ============================================================
+const APP = {
+  allSteps: { sequential: [], binary: [], linked: [] },
+  currentAlgo:  'sequential',
+  currentIndex: 0,
+  playTimer:    null,
+  speed:        1100  // default playback interval (ms); matches "中速" option
+};
+
+// ============================================================
+//  INIT
+// ============================================================
+function initApp() {
+  // Generate all step sequences upfront; player only renders snapshots.
+  APP.allSteps.sequential = generateSequentialSteps();
+  APP.allSteps.binary     = generateBinarySteps();
+  APP.allSteps.linked     = generateLinkedSteps();
+
+  // Stamp stepIndex / totalSteps into every step object
+  ['sequential', 'binary', 'linked'].forEach(algo => {
+    const steps = APP.allSteps[algo];
+    steps.forEach((s, i) => {
+      // Overwrite each step with a new object that includes the stamped fields.
+      // Object.assign creates a fresh copy so the original (partially frozen) object
+      // is not mutated, and stepIndex/totalSteps are cleanly added.
+      s = APP.allSteps[algo][i] = Object.assign({}, s, {
+        stepIndex:  i,
+        totalSteps: steps.length
+      });
+    });
+  });
+
+  setupEventListeners();
+  setupDataSourceHandlers();
+  setupFileIOHandlers();
+  setupTestCaseHandlers();
+  updateHeaderInfo();
+  renderStep(currentStep());
+}
+
+function currentStep() {
+  return APP.allSteps[APP.currentAlgo][APP.currentIndex];
+}
+
+// ============================================================
+//  EVENT LISTENERS
+// ============================================================
+function setupEventListeners() {
+  // Algorithm tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.algo === APP.currentAlgo) return;
+      stopPlayback();
+      APP.currentAlgo  = btn.dataset.algo;
+      APP.currentIndex = 0;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateHeaderBadge();
+      renderStep(currentStep());
+      updateNavButtons();
+    });
+  });
+
+  // Reset
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    stopPlayback();
+    APP.currentIndex = 0;
+    renderStep(currentStep());
+    updateNavButtons();
+  });
+
+  // Previous step
+  document.getElementById('btn-prev').addEventListener('click', () => {
+    if (APP.currentIndex > 0) {
+      APP.currentIndex--;
+      renderStep(currentStep());
+      updateNavButtons();
+    }
+  });
+
+  // Next step
+  document.getElementById('btn-next').addEventListener('click', () => {
+    const last = APP.allSteps[APP.currentAlgo].length - 1;
+    if (APP.currentIndex < last) {
+      APP.currentIndex++;
+      renderStep(currentStep());
+      updateNavButtons();
+    }
+  });
+
+  // Play / Pause
+  document.getElementById('btn-play').addEventListener('click', () => {
+    APP.playTimer ? stopPlayback() : startPlayback();
+  });
+
+  // Speed selector
+  document.getElementById('speed-select').addEventListener('change', e => {
+    APP.speed = parseInt(e.target.value, 10);
+    if (APP.playTimer) { stopPlayback(); startPlayback(); }
+  });
+
+  // Run all tests button
+  document.getElementById('btn-run-all-tests').addEventListener('click', runAllTestsAndCalculateASL);
+}
+
+function startPlayback() {
+  const btn = document.getElementById('btn-play');
+  btn.textContent = '⏸ 暂停';
+  btn.classList.add('paused');
+  APP.playTimer = setInterval(() => {
+    const last = APP.allSteps[APP.currentAlgo].length - 1;
+    if (APP.currentIndex < last) {
+      APP.currentIndex++;
+      renderStep(currentStep());
+      updateNavButtons();
+    } else {
+      stopPlayback();
+    }
+  }, APP.speed);
+}
+
+function stopPlayback() {
+  if (APP.playTimer) { clearInterval(APP.playTimer); APP.playTimer = null; }
+  const btn = document.getElementById('btn-play');
+  btn.textContent = '▶ 播放';
+  btn.classList.remove('paused');
+}
+
+function updateNavButtons() {
+  const last = APP.allSteps[APP.currentAlgo].length - 1;
+  document.getElementById('btn-prev').disabled = (APP.currentIndex === 0);
+  document.getElementById('btn-next').disabled = (APP.currentIndex === last);
+}
+
+function updateHeaderBadge() {
+  const names = {
+    sequential: '顺序索引分块查找',
+    binary:     '折半索引分块查找',
+    linked:     '链式分块查找'
+  };
+  const briefs = {
+    sequential: '索引表顺序查找 O(b) + 块内顺序查找 O(s)，总 O(b+s)',
+    binary:     '索引表折半查找 O(log b) + 块内顺序查找 O(s)，总 O(log b + s)',
+    linked:     '索引顺序查找 O(b) + 链表遍历 O(s)，支持 O(1) 块内动态插删'
+  };
+  document.getElementById('algo-badge').textContent = names[APP.currentAlgo];
+  document.getElementById('algo-brief').textContent = briefs[APP.currentAlgo];
+}
+
+// ============================================================
+//  RENDER STEP  (main dispatcher)
+// ============================================================
+function renderStep(step) {
+  if (!step) return;
+
+  // Update step explanation panel
+  document.getElementById('step-counter').textContent =
+    `步骤 ${step.stepIndex + 1} / ${step.totalSteps}`;
+  document.getElementById('step-phase-tag').textContent = step.phase;
+  document.getElementById('step-title').textContent       = step.title;
+  document.getElementById('step-description').textContent = step.description;
+  document.getElementById('step-function').textContent    = step.functionName + '()';
+
+  renderVariables(step.variables);
+  renderArrayVisual(step);
+  renderIndexTable(step);
+  renderAlgoState(step);
+  updateNavButtons();
+}
+
+// ============================================================
+//  RENDER: Variable chips
+// ============================================================
+function renderVariables(vars) {
+  const el = document.getElementById('step-variables');
+  el.innerHTML = '';
+  Object.entries(vars).forEach(([k, v]) => {
+    const chip = document.createElement('span');
+    chip.className = 'var-chip';
+    chip.innerHTML =
+      `<span class="var-key">${escHtml(String(k))}</span>` +
+      `<span class="var-val">${escHtml(String(v))}</span>`;
+    el.appendChild(chip);
+  });
+}
+
+// ============================================================
+//  RENDER: Array visual  (25 elements in 5 colored block groups)
+// ============================================================
+function renderArrayVisual(step) {
+  const container = document.getElementById('array-visual');
+  container.innerHTML = '';
+
+  const hl         = step.highlight;
+  const hlSet      = new Set(hl.arrayIndices || []);
+  const foundIdx   = hl.foundIndex;    // -1 or 0-based index
+  const activeBlk  = hl.activeBlock;   // -1 or 0-based block
+
+  // Build one row of block groups separated by small gaps
+  const row = document.createElement('div');
+  row.className = 'array-block-row';
+
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    // Block group container (label + cells)
+    const group = document.createElement('div');
+    group.className = `block-group block-color-${b % 5}`; // 循环使用5种颜色
+    if (b === activeBlk) group.classList.add('block-active');
+
+    // Block label (e.g., "第1块 max=14")
+    const label = document.createElement('div');
+    label.className = 'block-label';
+    label.textContent = `第${b + 1}块  max=${IDX[b].max_val}`;
+    group.appendChild(label);
+
+    // Cells container
+    const cellsDiv = document.createElement('div');
+    cellsDiv.className = 'block-cells';
+
+    for (let i = 0; i < BLOCK_SIZE; i++) {
+      const arrIdx = b * BLOCK_SIZE + i;
+      const val    = ARRAY[arrIdx];
+
+      const elem = document.createElement('div');
+      elem.className = 'array-element';
+
+      // Determine highlight class
+      if (foundIdx === arrIdx) {
+        elem.classList.add('hl-found');
+      } else if (hlSet.has(arrIdx)) {
+        elem.classList.add('hl-current');
+      }
+
+      // Index label (1-based to match C output)
+      const idxDiv = document.createElement('div');
+      idxDiv.className = 'elem-idx';
+      idxDiv.textContent = arrIdx + 1;  // 1-based index to match C output
+
+      // Value box
+      const valDiv = document.createElement('div');
+      valDiv.className = 'elem-val';
+      valDiv.textContent = val;
+
+      elem.appendChild(idxDiv);
+      elem.appendChild(valDiv);
+      cellsDiv.appendChild(elem);
+    }
+
+    group.appendChild(cellsDiv);
+    row.appendChild(group);
+
+    // Add small separator between blocks (except after last)
+    if (b < NUM_BLOCKS - 1) {
+      const sep = document.createElement('div');
+      sep.className = 'block-separator';
+      row.appendChild(sep);
+    }
+  }
+
+  container.appendChild(row);
+}
+
+// ============================================================
+//  RENDER: Index table  (5 rows: 块号, 最大关键字, 起始下标)
+// ============================================================
+function renderIndexTable(step) {
+  const container = document.getElementById('index-table-visual');
+  container.innerHTML = '';
+
+  const hl         = step.highlight;
+  const currentRow = hl.indexRow;       // orange: row being examined
+  const foundRow   = hl.indexFound;     // green: confirmed block
+  const midRow     = hl.indexMid;       // blue: mid in binary search
+  const rangeLow   = hl.indexRangeLow;  // binary: current low
+  const rangeHigh  = hl.indexRangeHigh; // binary: current high
+
+  const wrap = document.createElement('div');
+  wrap.className = 'index-table-wrap';
+
+  const tbl = document.createElement('table');
+  tbl.className = 'index-table';
+
+  // Header
+  const thead = tbl.createTHead();
+  const hr    = thead.insertRow();
+  ['块号', '最大关键字 (max_val)', '起始下标 (start)', '块内元素'].forEach(text => {
+    const th = document.createElement('th');
+    th.textContent = text;
+    hr.appendChild(th);
+  });
+
+  // Body
+  const tbody = tbl.createTBody();
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    const tr = tbody.insertRow();
+
+    // Apply highlight class
+    if (b === foundRow && foundRow !== -1) {
+      tr.classList.add('hl-index-found');
+    } else if (b === midRow && midRow !== -1) {
+      tr.classList.add('hl-index-mid');
+    } else if (b === currentRow && currentRow !== -1) {
+      tr.classList.add('hl-index-current');
+    } else if (
+      rangeLow !== -1 && rangeHigh !== -1 &&
+      (b < rangeLow || b > rangeHigh)
+    ) {
+      tr.classList.add('hl-index-range');
+    }
+
+    // Cells
+    [
+      b + 1,                    // 块号 (1-based for display)
+      IDX[b].max_val,           // max_val
+      IDX[b].start + 1,         // start (1-based to match C output)
+      ARRAY.slice(IDX[b].start, IDX[b].start + BLOCK_SIZE).join(', ')
+    ].forEach(val => {
+      const td = tr.insertCell();
+      td.textContent = val;
+    });
+  }
+
+  wrap.appendChild(tbl);
+  container.appendChild(wrap);
+}
+
+// ============================================================
+//  RENDER: Algorithm state panel  (dispatches by algorithm)
+// ============================================================
+function renderAlgoState(step) {
+  const el = document.getElementById('state-content');
+  el.innerHTML = '';
+
+  if (step.algorithm === 'sequential') {
+    renderSequentialState(el, step);
+  } else if (step.algorithm === 'binary') {
+    renderBinaryState(el, step);
+  } else {
+    renderLinkedState(el, step);
+  }
+}
+
+// ── Sequential state ──────────────────────────────────────
+function renderSequentialState(el, step) {
+  const s       = step.algoState || {};
+  const phase   = s.phase   || 'init';
+  const b       = s.b;
+  const pos     = s.pos;
+  const result  = step.searchResult || new SearchResult();
+
+  const bActive     = (typeof b === 'number') ? ' active' : '';
+  const posActive   = (typeof pos === 'number') ? ' active' : '';
+  const doneActive  = (phase === 'done' && result.position > 0) ? ' done' : '';
+
+  el.innerHTML = `
+    <div class="phase-label-display">当前阶段：<span class="phase-badge">${escHtml(
+      phase === 'init'  ? '初始化' :
+      phase === 'index' ? '第一步：索引顺序扫描' :
+      phase === 'block' ? '第二步：块内顺序查找' :
+                          '完成'
+    )}</span></div>
+    <div class="state-vars-row">
+      <div class="state-var">
+        <span class="state-label">当前块索引<br>b（0-based）</span>
+        <span class="state-value${bActive}">${typeof b === 'number' ? b : '—'}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">当前数组位置<br>pos（1-based）</span>
+        <span class="state-value${posActive}">${typeof pos === 'number' ? pos : '—'}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">索引比较次数<br>index_compares</span>
+        <span class="state-value${result.index_compares > 0 ? ' active' : ''}">${result.index_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">块内比较次数<br>block_compares</span>
+        <span class="state-value${result.block_compares > 0 ? ' active' : ''}">${result.block_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">总比较次数<br>total_compares</span>
+        <span class="state-value${result.total_compares > 0 ? ' active' : ''}">${result.total_compares}</span>
+      </div>
+    </div>
+    ${result.position > 0
+      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 在位置 ${result.position}（1-based），0-based 下标 ${result.position - 1}</div>`
+      : phase === 'done'
+        ? `<div class="result-summary result-failed">✗ 查找失败：关键字 ${KEY} 不在表中</div>`
+        : ''}
+    <div class="complexity-note" style="margin-top:8px">
+      ⏱ 时间复杂度：O(b + s) = O(${NUM_BLOCKS} + ${BLOCK_SIZE}) = O(${NUM_BLOCKS + BLOCK_SIZE})&emsp;
+      本例最多 ${NUM_BLOCKS + BLOCK_SIZE} 次比较
+    </div>`;
+}
+
+// ── Binary state ──────────────────────────────────────────
+function renderBinaryState(el, step) {
+  const s       = step.algoState || {};
+  const phase   = s.phase   || 'init';
+  const low     = s.low;
+  const high    = s.high;
+  const mid     = s.mid;
+  const blockId = s.block_id;
+  const result  = step.searchResult || new SearchResult();
+
+  el.innerHTML = `
+    <div class="phase-label-display">当前阶段：<span class="phase-badge">${escHtml(
+      phase === 'init'  ? '初始化' :
+      phase === 'index' ? '第一步：索引折半查找' :
+      phase === 'block' ? '第二步：块内顺序查找' :
+                          '完成'
+    )}</span></div>
+    <div class="binary-range-display">
+      <div class="range-item">
+        <span class="range-label">low</span>
+        <span class="range-value low-val">${typeof low === 'number' ? low : '—'}</span>
+      </div>
+      <div class="range-item">
+        <span class="range-label">high</span>
+        <span class="range-value high-val">${typeof high === 'number' ? high : '—'}</span>
+      </div>
+      <div class="range-item">
+        <span class="range-label">mid</span>
+        <span class="range-value mid-val">${typeof mid === 'number' ? mid : '—'}</span>
+      </div>
+      <div class="range-item">
+        <span class="range-label">block_id</span>
+        <span class="range-value block-val">${typeof blockId === 'number' && blockId >= 0 ? blockId : '—'}</span>
+      </div>
+    </div>
+    <div class="state-vars-row" style="margin-top:10px">
+      <div class="state-var">
+        <span class="state-label">索引比较次数<br>index_compares</span>
+        <span class="state-value${result.index_compares > 0 ? ' active' : ''}">${result.index_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">块内比较次数<br>block_compares</span>
+        <span class="state-value${result.block_compares > 0 ? ' active' : ''}">${result.block_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">总比较次数<br>total_compares</span>
+        <span class="state-value${result.total_compares > 0 ? ' active' : ''}">${result.total_compares}</span>
+      </div>
+    </div>
+    ${result.position > 0
+      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 在位置 ${result.position}（1-based）</div>`
+      : phase === 'done'
+        ? `<div class="result-summary result-failed">✗ 查找失败</div>`
+        : ''}
+    <div class="complexity-note" style="margin-top:8px">
+      ⏱ 时间复杂度：O(log b + s) = O(⌈log₂${NUM_BLOCKS}⌉ + ${BLOCK_SIZE}) = O(${Math.ceil(Math.log2(NUM_BLOCKS+1))} + ${BLOCK_SIZE}) = O(${Math.ceil(Math.log2(NUM_BLOCKS+1)) + BLOCK_SIZE})&emsp;
+      折半索引最多 ${Math.ceil(Math.log2(NUM_BLOCKS+1))} 次，块内最多 ${BLOCK_SIZE} 次
+    </div>`;
+}
+
+// ── Linked state ──────────────────────────────────────────
+function renderLinkedState(el, step) {
+  const s        = step.algoState || {};
+  const phase    = s.phase    || 'init';
+  const b        = s.b;
+  const llPos    = s.llPos;
+  const blockId  = s.block_id;
+  const result   = step.searchResult || new SearchResult();
+  const hl       = step.highlight;
+
+  // Render mini linked-list for the active block
+  let llHtml = '';
+  if (typeof blockId === 'number' && blockId >= 0) {
+    const nodes = LINKED_BLOCKS[blockId].nodes;
+    let nodeStr = '<span class="ll-head-label">HEAD</span><span class="ll-arrow">→</span>';
+    nodes.forEach((val, ni) => {
+      let cls = 'll-node';
+      if (hl.llFoundNode === ni)   cls += ' hl-ll-found';
+      else if (hl.llCurrentNode === ni) cls += ' hl-ll-current';
+      nodeStr += `<div class="${cls}">
+        <div class="ll-node-data">${val}</div>
+        <div class="ll-node-ptr">*next</div>
+      </div>`;
+      nodeStr += '<span class="ll-arrow">→</span>';
+    });
+    nodeStr += '<span class="ll-null">NULL</span>';
+    llHtml = `
+      <div style="margin-bottom:8px;font-size:0.78rem;color:#555;font-weight:600">
+        第 ${blockId + 1} 块链表（max_val = ${LINKED_BLOCKS[blockId].max_val}）：
+      </div>
+      <div class="linked-list-visual">${nodeStr}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="phase-label-display">当前阶段：<span class="phase-badge">${escHtml(
+      phase === 'init'  ? '初始化' :
+      phase === 'index' ? '第一步：索引顺序扫描' :
+      phase === 'll'    ? '第二步：链表遍历查找' :
+                          '完成'
+    )}</span></div>
+    <div class="state-vars-row">
+      <div class="state-var">
+        <span class="state-label">当前块索引<br>block_id（0-based）</span>
+        <span class="state-value${typeof blockId === 'number' && blockId >= 0 ? ' active' : ''}">
+          ${typeof blockId === 'number' && blockId >= 0 ? blockId : '—'}
+        </span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">链表指针位置<br>（块内第几个结点）</span>
+        <span class="state-value${typeof llPos === 'number' ? ' active' : ''}">
+          ${typeof llPos === 'number' ? llPos : '—'}
+        </span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">索引比较次数<br>index_compares</span>
+        <span class="state-value${result.index_compares > 0 ? ' active' : ''}">${result.index_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">块内比较次数<br>block_compares</span>
+        <span class="state-value${result.block_compares > 0 ? ' active' : ''}">${result.block_compares}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">总比较次数<br>total_compares</span>
+        <span class="state-value${result.total_compares > 0 ? ' active' : ''}">${result.total_compares}</span>
+      </div>
+    </div>
+    ${llHtml}
+    ${result.position > 0
+      ? `<div class="result-summary">✓ 查找成功：关键字 ${KEY} 逻辑位置 ${result.position}（1-based）</div>`
+      : phase === 'done'
+        ? `<div class="result-summary result-failed">✗ 查找失败</div>`
+        : ''}
+    <div class="complexity-note" style="margin-top:8px">
+      ⏱ 时间复杂度：O(b + s) = O(${NUM_BLOCKS} + ${BLOCK_SIZE})&emsp;
+      额外空间：O(n) = O(${ARRAY.length}) 个链表结点（每个结点含 data + *next）
+    </div>`;
+}
+
+// ============================================================
+//  UTILITIES
+// ============================================================
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ============================================================
+//  REBUILD APP  (called after data changes)
+// ============================================================
+function rebuildApp() {
+  rebuildDerived();
+  APP.allSteps.sequential = generateSequentialSteps();
+  APP.allSteps.binary     = generateBinarySteps();
+  APP.allSteps.linked     = generateLinkedSteps();
+
+  ['sequential', 'binary', 'linked'].forEach(algo => {
+    const steps = APP.allSteps[algo];
+    steps.forEach((s, i) => {
+      APP.allSteps[algo][i] = Object.assign({}, s, { stepIndex: i, totalSteps: steps.length });
+    });
+  });
+
+  stopPlayback();
+  APP.currentIndex = 0;
+  updateHeaderInfo();
+  renderStep(currentStep());
+  updateNavButtons();
+}
+
+function updateHeaderInfo() {
+  const subtitle = document.querySelector('.header-subtitle');
+  if (subtitle) {
+    subtitle.textContent =
+      `part1/block_search.c 教学演示 · ${ARRAY.length}个元素，${NUM_BLOCKS}块，每块${BLOCK_SIZE}个，查找关键字 ${KEY}`;
+  }
+  const arrayTitle = document.getElementById('panel-title-array');
+  if (arrayTitle) {
+    arrayTitle.textContent = `顺序表（${ARRAY.length}个元素，${NUM_BLOCKS}块，每块${BLOCK_SIZE}个）`;
+  }
+  const indexTitle = document.getElementById('panel-title-index');
+  if (indexTitle) {
+    indexTitle.textContent = `索引表（${NUM_BLOCKS}项）`;
+  }
+}
+
+// ============================================================
+//  DYNAMIC ASL CALCULATION
+// ============================================================
+function updateDynamicASL() {
+  // 更新参数显示
+  document.getElementById('asl-b').textContent = NUM_BLOCKS;
+  document.getElementById('asl-s').textContent = BLOCK_SIZE;
+  document.getElementById('asl-n').textContent = ARRAY.length;
+
+  // 顺序索引查找ASL
+  const seqASLSuccess = (NUM_BLOCKS + 1) / 2 + (BLOCK_SIZE + 1) / 2;
+  const seqASLFail = (NUM_BLOCKS + 1) / 2 + BLOCK_SIZE;
+  document.getElementById('seq-asl-b1').textContent = NUM_BLOCKS;
+  document.getElementById('seq-asl-s1').textContent = BLOCK_SIZE;
+  document.getElementById('seq-asl-success-val').textContent = ((NUM_BLOCKS + 1) / 2).toFixed(1);
+  document.getElementById('seq-asl-success-val2').textContent = ((BLOCK_SIZE + 1) / 2).toFixed(1);
+  document.getElementById('seq-asl-success-total').textContent = seqASLSuccess.toFixed(1);
+  
+  document.getElementById('seq-asl-b2').textContent = NUM_BLOCKS;
+  document.getElementById('seq-asl-s2').textContent = BLOCK_SIZE;
+  document.getElementById('seq-asl-fail-val').textContent = ((NUM_BLOCKS + 1) / 2).toFixed(1);
+  document.getElementById('seq-asl-fail-val2').textContent = BLOCK_SIZE;
+  document.getElementById('seq-asl-fail-total').textContent = seqASLFail.toFixed(1);
+
+  // 折半索引查找ASL
+  const binASLSuccess = Math.ceil(Math.log2(NUM_BLOCKS + 1)) + (BLOCK_SIZE + 1) / 2;
+  const binASLFail = Math.ceil(Math.log2(NUM_BLOCKS + 1)) + BLOCK_SIZE;
+  document.getElementById('bin-asl-b1').textContent = NUM_BLOCKS;
+  document.getElementById('bin-asl-s1').textContent = BLOCK_SIZE;
+  document.getElementById('bin-asl-success-val').textContent = Math.ceil(Math.log2(NUM_BLOCKS + 1));
+  document.getElementById('bin-asl-success-val2').textContent = ((BLOCK_SIZE + 1) / 2).toFixed(1);
+  document.getElementById('bin-asl-success-total').textContent = binASLSuccess.toFixed(1);
+  
+  document.getElementById('bin-asl-fail-val').textContent = Math.ceil(Math.log2(NUM_BLOCKS + 1));
+  document.getElementById('bin-asl-s2').textContent = BLOCK_SIZE;
+  document.getElementById('bin-asl-fail-total').textContent = binASLFail.toFixed(1);
+}
+
+// ============================================================
+//  TEST CASE HANDLERS
+// ============================================================
+function setupTestCaseHandlers() {
+  // 测试案例卡片点击事件
+  document.querySelectorAll('.test-case-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const key = parseInt(card.dataset.key, 10);
+      if (!isNaN(key)) {
+        KEY = key;
+        rebuildApp();
+        // 自动滚动到可视化区域
+        document.getElementById('data-display').scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+}
+
+// 运行所有测试案例并计算实际ASL
+function runAllTestsAndCalculateASL() {
+  const testKeys = [10, 6, 100, 35, 0, 101, 14, 66, 46]; // 包含所有测试案例的键值
+  const successKeys = [10, 6, 100, 14, 66, 46]; // 查找成功的键值
+  const failKeys = [35, 0, 101]; // 查找失败的键值
+
+  let seqSuccessTotal = 0, seqFailTotal = 0;
+  let binSuccessTotal = 0, binFailTotal = 0;
+  let linkSuccessTotal = 0, linkFailTotal = 0;
+
+  // 保存当前KEY
+  const originalKey = KEY;
+
+  // 运行所有成功案例
+  successKeys.forEach(key => {
+    KEY = key;
+    rebuildDerived();
+    
+    // 顺序索引查找
+    const seqSteps = generateSequentialSteps();
+    const seqResult = seqSteps[seqSteps.length - 1].searchResult;
+    seqSuccessTotal += seqResult.total_compares;
+    
+    // 折半索引查找
+    const binSteps = generateBinarySteps();
+    const binResult = binSteps[binSteps.length - 1].searchResult;
+    binSuccessTotal += binResult.total_compares;
+    
+    // 链式分块查找
+    const linkSteps = generateLinkedSteps();
+    const linkResult = linkSteps[linkSteps.length - 1].searchResult;
+    linkSuccessTotal += linkResult.total_compares;
+  });
+
+  // 运行所有失败案例
+  failKeys.forEach(key => {
+    KEY = key;
+    rebuildDerived();
+    
+    // 顺序索引查找
+    const seqSteps = generateSequentialSteps();
+    const seqResult = seqSteps[seqSteps.length - 1].searchResult;
+    seqFailTotal += seqResult.total_compares;
+    
+    // 折半索引查找
+    const binSteps = generateBinarySteps();
+    const binResult = binSteps[binSteps.length - 1].searchResult;
+    binFailTotal += binResult.total_compares;
+    
+    // 链式分块查找
+    const linkSteps = generateLinkedSteps();
+    const linkResult = linkSteps[linkSteps.length - 1].searchResult;
+    linkFailTotal += linkResult.total_compares;
+  });
+
+  // 计算平均ASL
+  const seqASLSuccess = (seqSuccessTotal / successKeys.length).toFixed(2);
+  const seqASLFail = (seqFailTotal / failKeys.length).toFixed(2);
+  const binASLSuccess = (binSuccessTotal / successKeys.length).toFixed(2);
+  const binASLFail = (binFailTotal / failKeys.length).toFixed(2);
+  const linkASLSuccess = (linkSuccessTotal / successKeys.length).toFixed(2);
+  const linkASLFail = (linkFailTotal / failKeys.length).toFixed(2);
+
+  // 更新显示
+  document.getElementById('seq-asl-success').textContent = seqASLSuccess;
+  document.getElementById('seq-asl-fail').textContent = seqASLFail;
+  document.getElementById('bin-asl-success').textContent = binASLSuccess;
+  document.getElementById('bin-asl-fail').textContent = binASLFail;
+  document.getElementById('link-asl-success').textContent = linkASLSuccess;
+  document.getElementById('link-asl-fail').textContent = linkASLFail;
+
+  // 恢复原始KEY
+  KEY = originalKey;
+  rebuildApp();
+
+  alert('所有测试案例运行完成！实际ASL结果已显示在下方。');
+}
+
+// ============================================================
+//  DATA SOURCE HANDLERS
+// ============================================================
+function setupDataSourceHandlers() {
+  document.querySelectorAll('input[name="data-source"]').forEach(radio => {
+    radio.addEventListener('change', e => {
+      document.getElementById('manual-input-panel').classList.toggle('hidden', e.target.value !== 'manual');
+      document.getElementById('random-input-panel').classList.toggle('hidden', e.target.value !== 'random');
+      if (e.target.value === 'default') {
+        ARRAY      = [...DEFAULT_ARRAY];
+        BLOCK_SIZE = DEFAULT_BLOCK_SIZE;
+        NUM_BLOCKS = DEFAULT_NUM_BLOCKS;
+        KEY        = DEFAULT_KEY;
+        rebuildApp();
+      }
+    });
+  });
+
+  document.getElementById('btn-apply-manual').addEventListener('click', () => {
+    const bs = Math.min(10, Math.max(2, parseInt(document.getElementById('manual-block-size').value) || 5));
+    const nb = Math.min(10, Math.max(2, parseInt(document.getElementById('manual-num-blocks').value) || 5));
+    const k  = parseInt(document.getElementById('manual-key').value) || 0;
+    const raw = document.getElementById('manual-array-input').value;
+    const vals = raw.split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+    const needed = bs * nb;
+    if (vals.length < needed) {
+      alert(`需要 ${needed} 个整数（当前仅 ${vals.length} 个）`);
+      return;
+    }
+    ARRAY      = vals.slice(0, needed);
+    BLOCK_SIZE = bs;
+    NUM_BLOCKS = nb;
+    KEY        = k;
+    rebuildApp();
+  });
+
+  document.getElementById('btn-generate-random').addEventListener('click', () => {
+    const bs = Math.min(10, Math.max(2, parseInt(document.getElementById('random-block-size').value) || 5));
+    const nb = Math.min(10, Math.max(2, parseInt(document.getElementById('random-num-blocks').value) || 5));
+    ARRAY      = generateSortedBlockArray(bs, nb);
+    BLOCK_SIZE = bs;
+    NUM_BLOCKS = nb;
+    KEY        = ARRAY[Math.floor(Math.random() * ARRAY.length)];
+    document.getElementById('random-key-display').textContent = `查找键：${KEY}`;
+    rebuildApp();
+  });
+}
+
+function generateSortedBlockArray(blockSize, numBlocks) {
+  const arr = [];
+  const gap = 15;
+  for (let b = 0; b < numBlocks; b++) {
+    const base = b * gap;
+    for (let i = 0; i < blockSize; i++) {
+      arr.push(base + Math.floor(Math.random() * gap) + 1);
+    }
+  }
+  return arr;
+}
+
+// ============================================================
+//  FILE I/O HANDLERS
+// ============================================================
+function setupFileIOHandlers() {
+  let parsedKeys = null;
+
+  document.getElementById('file-input-p1').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result;
+      document.getElementById('input-display-p1').value = text;
+      parsedKeys = parseInputFile(text);
+      document.getElementById('btn-apply-file-p1').disabled = !parsedKeys;
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('btn-apply-file-p1').addEventListener('click', () => {
+    if (!parsedKeys) return;
+    const output = runSearchKeys(parsedKeys);
+    document.getElementById('output-display-p1').value = output;
+    document.getElementById('btn-download-output-p1').disabled = false;
+    document._part1OutputText = output;
+  });
+
+  document.getElementById('btn-generate-output-p1').addEventListener('click', () => {
+    const output = generateOutputText();
+    document.getElementById('output-display-p1').value = output;
+    document.getElementById('btn-download-output-p1').disabled = false;
+    document._part1OutputText = output;
+  });
+
+  document.getElementById('btn-download-output-p1').addEventListener('click', () => {
+    const text = document._part1OutputText || '';
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'part1-output.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+function parseInputFile(text) {
+  const lines = text.trim().split(/\n/).map(l => l.trim()).filter(l => l);
+  if (lines.length < 1) return null;
+  const n = parseInt(lines[0]);
+  if (!n || n < 1) return null;
+  const keys = [];
+  for (let i = 1; i <= n && i < lines.length; i++) {
+    const k = parseInt(lines[i]);
+    if (!isNaN(k)) keys.push(k);
+  }
+  return keys.length > 0 ? keys : null;
+}
+
+function runSearchKeys(keys) {
+  let out = '========================================\n';
+  out += '分块查找 — 批量查找结果\n';
+  out += `顺序表：${ARRAY.length} 个元素，${NUM_BLOCKS} 块，每块 ${BLOCK_SIZE} 个\n`;
+  out += '========================================\n\n';
+  keys.forEach(k => {
+    out += `查找关键字 ${k}：\n`;
+    let result = sequentialSearchKey(k);
+    out += `  顺序索引分块查找：${result >= 0 ? `找到，位置 ${result + 1}` : '未找到'}\n`;
+    result = binarySearchKey(k);
+    out += `  折半索引分块查找：${result >= 0 ? `找到，位置 ${result + 1}` : '未找到'}\n`;
+    out += '\n';
+  });
+  return out;
+}
+
+function sequentialSearchKey(key) {
+  let blockId = -1;
+  for (let b = 0; b < NUM_BLOCKS; b++) {
+    if (key <= IDX[b].max_val) { blockId = b; break; }
+  }
+  if (blockId < 0) return -1;
+  const start = IDX[blockId].start;
+  for (let i = start; i < start + BLOCK_SIZE; i++) {
+    if (ARRAY[i] === key) return i;
+  }
+  return -1;
+}
+
+function binarySearchKey(key) {
+  let lo = 0, hi = NUM_BLOCKS - 1, blockId = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (key <= IDX[mid].max_val) {
+      if (mid === 0 || key > IDX[mid - 1].max_val) { blockId = mid; break; }
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  if (blockId < 0) { blockId = lo < NUM_BLOCKS ? lo : -1; }
+  if (blockId < 0) return -1;
+  const start = IDX[blockId].start;
+  for (let i = start; i < start + BLOCK_SIZE; i++) {
+    if (ARRAY[i] === key) return i;
+  }
+  return -1;
+}
+
+function generateOutputText() {
+  return runSearchKeys([KEY]);
+}
+
+// ============================================================
+//  BOOT
+// ============================================================
+document.addEventListener('DOMContentLoaded', initApp);
+</script>
 </body>
 </html>
