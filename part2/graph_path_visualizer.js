@@ -49,10 +49,116 @@ let EDGES = [...DEFAULT_EDGES];
 let VERTEX_POS = Object.assign({}, DEFAULT_VERTEX_POS);
 
 // ============================================================
+// 完善：队列函数式实现（增加队列满检查）
+// ============================================================
+const QUEUE_SIZE = 256;
+
+function Queue() {
+  this.data = new Array(QUEUE_SIZE);
+  this.front = 0;
+  this.rear = 0;
+}
+
+Queue.prototype.init = function() {
+  this.front = this.rear = 0;
+};
+
+Queue.prototype.empty = function() {
+  return this.front === this.rear;
+};
+
+Queue.prototype.full = function() {
+  return (this.rear - this.front) >= QUEUE_SIZE;
+};
+
+Queue.prototype.enqueue = function(x) {
+  if (this.full()) {
+    throw new Error(`队列溢出错误：队列已满，无法入队元素 ${x}`);
+  }
+  this.data[this.rear++ % QUEUE_SIZE] = x;
+};
+
+Queue.prototype.dequeue = function() {
+  if (this.empty()) {
+    throw new Error('队列下溢错误：队列为空，无法出队');
+  }
+  return this.data[this.front++ % QUEUE_SIZE];
+};
+
+Queue.prototype.toArray = function() {
+  const arr = [];
+  for (let i = this.front; i < this.rear; i++) {
+    arr.push(this.data[i % QUEUE_SIZE]);
+  }
+  return arr;
+};
+
+// ============================================================
+// 新增：递推打印最短路径函数（迭代+递归）
+// ============================================================
+function print_path_iterative(parent, dst) {
+  const stack = [];
+  let cur = dst;
+  while (cur !== -1) {
+    stack.unshift(cur);
+    cur = parent[cur];
+  }
+  return stack;
+}
+
+function print_path_recursive(parent, dst, path = []) {
+  if (parent[dst] === -1) {
+    return [dst];
+  }
+  const prevPath = print_path_recursive(parent, parent[dst]);
+  return [...prevPath, dst];
+}
+
+// ============================================================
+// 优化：邻接表摧毁函数
+// ============================================================
+function destroy_adj_list() {
+  for (let i = 1; i <= NUM_VERTICES; i++) {
+    ADJ_LIST[i] = [];
+  }
+}
+
+// ============================================================
+// 新增：邻接矩阵与邻接表相互转换函数
+// ============================================================
+// 邻接表转邻接矩阵
+function list_to_matrix() {
+  // 先清空现有邻接矩阵
+  ADJ_MATRIX = Array.from({length: NUM_VERTICES + 1}, () => new Array(NUM_VERTICES + 1).fill(0));
+
+  // 遍历邻接表，添加所有边
+  for (let u = 1; u <= NUM_VERTICES; u++) {
+    for (const v of ADJ_LIST[u]) {
+      ADJ_MATRIX[u][v] = 1;
+    }
+  }
+}
+
+// 邻接矩阵转邻接表
+function matrix_to_list() {
+  // 先清空现有邻接表
+  destroy_adj_list();
+
+  // 遍历邻接矩阵，添加所有边
+  for (let u = 1; u <= NUM_VERTICES; u++) {
+    for (let v = 1; v <= NUM_VERTICES; v++) {
+      if (ADJ_MATRIX[u][v] === 1) {
+        ADJ_LIST[u].push(v);
+      }
+    }
+  }
+}
+
+// ============================================================
 //  APP STATE
 // ============================================================
 const APP = {
-  allSteps: { 'dfs-all': [], 'dfs-len3': [], 'bfs-list': [], 'bfs-matrix': [] },
+  allSteps: { 'dfs-all': [], 'dfs-len3': [], 'bfs-list': [], 'bfs-matrix': [], 'convert': [] },
   currentAlgo: 'dfs-all',
   currentIndex: 0,
   playTimer: null,
@@ -362,12 +468,13 @@ function generateBfsListSteps() {
   const INF      = 0x3f3f3f3f;
   const dist     = new Array(NUM_VERTICES + 1).fill(INF);   // dist[1..N]
   const parent   = new Array(NUM_VERTICES + 1).fill(-1);    // parent[1..N]
-  let   queue    = [];                        // BFS queue (vertex values)
+  const queue    = new Queue();                        // BFS queue (function-based)
+  queue.init();
   let   opCount  = 0;
 
   function snap() {
     return {
-      bfsQueue:  [...queue],
+      bfsQueue:  queue.toArray(),
       bfsDist:   dist.slice(),
       bfsParent: parent.slice(),
       dfsPath:   [],
@@ -380,25 +487,26 @@ function generateBfsListSteps() {
   function push(phase, title, desc, fn, vars, hlExtra) {
     steps.push(mkStep(
       'bfs-list', phase, title, desc, fn, vars,
-      Object.assign({ queueVertices: [...queue] }, hlExtra || {}),
+      Object.assign({ queueVertices: queue.toArray() }, hlExtra || {}),
       snap()
     ));
   }
 
   // ---- Init ----
   dist[SRC_V] = 0;
-  queue.push(SRC_V);
+  queue.enqueue(SRC_V);
   push('初始化',
     `BFS 初始化：dist[${SRC_V}] = 0，顶点 ${SRC_V} 入队`,
     `初始化所有 dist[] = INF（∞），parent[] = -1。设 dist[${SRC_V}] = 0，将起点 ${SRC_V} 入队。` +
-    `BFS 按层扩展，第一次到达某顶点时记录的距离即为最短距离（因为每条边权重为 1）。`,
+    `BFS 按层扩展，第一次到达某顶点时记录的距离即为最短距离（因为每条边权重为 1）。` +
+    `使用函数式队列实现，包含 init/empty/full/enqueue/dequeue 操作，增加了溢出检查。`,
     'bfs_shortest',
-    { src: SRC_V, dst: DST_V, [`dist[${SRC_V}]`]: 0, 'queue': `[${SRC_V}]` }
+    { src: SRC_V, dst: DST_V, [`dist[${SRC_V}]`]: 0, 'queue': `[${queue.toArray().join(', ')}]` }
   );
 
   // ---- BFS loop ----
-  while (queue.length > 0) {
-    const u = queue.shift();
+  while (!queue.empty()) {
+    const u = queue.dequeue();
     opCount++;
 
     push('出队',
@@ -408,7 +516,7 @@ function generateBfsListSteps() {
           `最短距离 dist[${DST_V}] = ${dist[DST_V]}，沿 parent[] 反向回溯即可得到路径。`
         : `出队顶点 u = ${u}（dist[${u}] = ${dist[u]}），开始处理其邻接表，检查每个邻居是否未访问。`,
       'bfs_shortest',
-      { u, [`dist[${u}]`]: dist[u], '队列': `[${queue.join(', ')}]`, 'u==dst?': u === DST_V ? 'YES → break' : 'NO' },
+      { u, [`dist[${u}]`]: dist[u], '队列': `[${queue.toArray().join(', ')}]`, 'u==dst?': u === DST_V ? 'YES → break' : 'NO' },
       { currentVertex: u }
     );
 
@@ -422,15 +530,15 @@ function generateBfsListSteps() {
       if (dist[v] === INF) {
         dist[v]   = dist[u] + 1;
         parent[v] = u;
-        queue.push(v);
+        queue.enqueue(v);
         push('入队',
           `邻居 v = ${v} 未访问 → dist[${v}] = ${dist[v]}，parent[${v}] = ${u}，${v} 入队`,
           `检查 u = ${u} 的邻居 v = ${v}：dist[${v}] = INF（未访问），` +
           `设 dist[${v}] = dist[${u}] + 1 = ${dist[v]}，parent[${v}] = ${u}，顶点 ${v} 入队。` +
           `parent[] 数组记录 BFS 树中的前驱节点，用于事后回溯路径。`,
           'bfs_shortest',
-          { u, v, [`dist[${v}]`]: dist[v], [`parent[${v}]`]: u, '队列': `[${queue.join(', ')}]` },
-          { currentVertex: u, queueVertices: [...queue] }
+          { u, v, [`dist[${v}]`]: dist[v], [`parent[${v}]`]: u, '队列': `[${queue.toArray().join(', ')}]` },
+          { currentVertex: u, queueVertices: queue.toArray() }
         );
       } else {
         push('邻居已访问',
@@ -439,16 +547,15 @@ function generateBfsListSteps() {
           `BFS 中每个顶点只入队一次，保证了最短路径的正确性。`,
           'bfs_shortest',
           { u, v, [`dist[${v}]`]: dist[v], '结果': '已访问 → 跳过' },
-          { currentVertex: u, queueVertices: [...queue] }
+          { currentVertex: u, queueVertices: queue.toArray() }
         );
       }
     }
   }
 
   // Reconstruct shortest path
-  const shortestPath = [];
-  let cur = DST_V;
-  while (cur !== -1) { shortestPath.unshift(cur); cur = parent[cur]; }
+  const shortestPath = print_path_iterative(parent, DST_V);
+  const recursivePath = print_path_recursive(parent, DST_V);
 
   push('回溯路径',
     `回溯 parent[] 数组，重建最短路径：${shortestPath.join('→')}`,
@@ -460,10 +567,24 @@ function generateBfsListSteps() {
     { foundPathVertices: shortestPath, foundPathEdges: pathToEdges(shortestPath) }
   );
 
+  // 新增：递推打印最短路径步骤
+  push('递推打印路径',
+    `递推（迭代+递归）方式打印最短路径`,
+    `使用两种方式打印最短路径：\n1. 迭代方式：从终点反向回溯到起点，存入栈中，再正向输出 → ${shortestPath.join(' → ')}\n2. 递归方式：从终点递归到起点，回溯时正向输出 → ${recursivePath.join(' → ')}`,
+    'print_path_iterative',
+    { 
+      '迭代路径': shortestPath.join('→'), 
+      '递归路径': recursivePath.join('→'),
+      'parent数组': parent.slice(1, NUM_VERTICES + 1).join(', ')
+    },
+    { foundPathVertices: shortestPath, foundPathEdges: pathToEdges(shortestPath) }
+  );
+
   push('完成',
     `🎉 BFS（邻接表）完成！最短路径：${shortestPath.join('→')}，长度 = ${shortestPath.length - 1}`,
     `BFS 保证了首次到达终点时路径最短（无权图）。最短路径为 ${shortestPath.join(' → ')}，` +
-    `共经过 ${shortestPath.length - 1} 条边。邻接表 BFS 时间复杂度 O(V+E)，本例 V=6，E=9。`,
+    `共经过 ${shortestPath.length - 1} 条边。邻接表 BFS 时间复杂度 O(V+E)，本例 V=6，E=9。` +
+    `使用函数式队列实现，避免了直接操作数组的性能问题，增加了错误处理机制。`,
     'bfs_shortest',
     { '最短路径': shortestPath.join('→'), '距离': shortestPath.length - 1, 'O(V+E)': `O(${NUM_VERTICES}+9)` },
     { foundPathVertices: shortestPath, foundPathEdges: pathToEdges(shortestPath) }
@@ -480,12 +601,13 @@ function generateBfsMatrixSteps() {
   const INF      = 0x3f3f3f3f;
   const dist     = new Array(NUM_VERTICES + 1).fill(INF);
   const parent   = new Array(NUM_VERTICES + 1).fill(-1);
-  let   queue    = [];
+  const queue    = new Queue();
+  queue.init();
   let   opCount  = 0;
 
   function snap() {
     return {
-      bfsQueue:  [...queue],
+      bfsQueue:  queue.toArray(),
       bfsDist:   dist.slice(),
       bfsParent: parent.slice(),
       dfsPath:   [],
@@ -498,13 +620,13 @@ function generateBfsMatrixSteps() {
   function push(phase, title, desc, fn, vars, hlExtra) {
     steps.push(mkStep(
       'bfs-matrix', phase, title, desc, fn, vars,
-      Object.assign({ queueVertices: [...queue] }, hlExtra || {}),
+      Object.assign({ queueVertices: queue.toArray() }, hlExtra || {}),
       snap()
     ));
   }
 
   dist[SRC_V] = 0;
-  queue.push(SRC_V);
+  queue.enqueue(SRC_V);
   push('初始化',
     `BFS（邻接矩阵）初始化：dist[${SRC_V}] = 0，顶点 ${SRC_V} 入队`,
     `与邻接表版相同的初始化：dist[] = INF，parent[] = -1，dist[${SRC_V}] = 0，${SRC_V} 入队。` +
@@ -514,8 +636,8 @@ function generateBfsMatrixSteps() {
     { src: SRC_V, dst: DST_V, 'use_matrix': 1, [`dist[${SRC_V}]`]: 0 }
   );
 
-  while (queue.length > 0) {
-    const u = queue.shift();
+  while (!queue.empty()) {
+    const u = queue.dequeue();
     opCount++;
 
     push('出队',
@@ -524,7 +646,7 @@ function generateBfsMatrixSteps() {
         ? `出队顶点 u = ${u} = dst，BFS 结束，最短距离 dist[${DST_V}] = ${dist[DST_V]}。`
         : `出队顶点 u = ${u}（dist[${u}] = ${dist[u]}）。邻接矩阵版逐列扫描第 ${u} 行：对每个 v = 1..${NUM_VERTICES} 检查 adj_matrix[${u}][v] 是否为 1。`,
       'bfs_shortest',
-      { u, [`dist[${u}]`]: dist[u], '队列': `[${queue.join(', ')}]`, '扫描行': u },
+      { u, [`dist[${u}]`]: dist[u], '队列': `[${queue.toArray().join(', ')}]`, '扫描行': u },
       { currentVertex: u, matrixRow: u }
     );
 
@@ -537,14 +659,14 @@ function generateBfsMatrixSteps() {
         if (dist[v] === INF) {
           dist[v]   = dist[u] + 1;
           parent[v] = u;
-          queue.push(v);
+          queue.enqueue(v);
           push('发现边 → 入队',
             `adj_matrix[${u}][${v}] = 1，v = ${v} 未访问 → dist[${v}] = ${dist[v]}，入队`,
             `adj_matrix[${u}][${v}] = 1，存在边 ${u}→${v}。dist[${v}] = INF（未访问），` +
             `更新 dist[${v}] = ${dist[v]}，parent[${v}] = ${u}，顶点 ${v} 入队。`,
             'bfs_shortest',
             { u, v, [`adj_matrix[${u}][${v}]`]: 1, [`dist[${v}]`]: dist[v], [`parent[${v}]`]: u },
-            { currentVertex: u, matrixRow: u, matrixCol: v, queueVertices: [...queue] }
+            { currentVertex: u, matrixRow: u, matrixCol: v, queueVertices: queue.toArray() }
           );
         } else {
           push('发现边 → 已访问',
@@ -552,16 +674,15 @@ function generateBfsMatrixSteps() {
             `adj_matrix[${u}][${v}] = 1，存在边 ${u}→${v}，但 dist[${v}] = ${dist[v]} ≠ INF，顶点 ${v} 已被访问，跳过。`,
             'bfs_shortest',
             { u, v, [`adj_matrix[${u}][${v}]`]: 1, [`dist[${v}]`]: dist[v], '结果': '已访问 → 跳过' },
-            { currentVertex: u, matrixRow: u, matrixCol: v, queueVertices: [...queue] }
+            { currentVertex: u, matrixRow: u, matrixCol: v, queueVertices: queue.toArray() }
           );
         }
       }
     }
   }
 
-  const shortestPath = [];
-  let c2 = DST_V;
-  while (c2 !== -1) { shortestPath.unshift(c2); c2 = parent[c2]; }
+  const shortestPath = print_path_iterative(parent, DST_V);
+  const recursivePath = print_path_recursive(parent, DST_V);
 
   push('回溯路径',
     `回溯 parent[] 重建最短路径：${shortestPath.join('→')}`,
@@ -569,6 +690,19 @@ function generateBfsMatrixSteps() {
     `最短路径 ${shortestPath.join(' → ')}，与邻接表 BFS 结果一致。`,
     'print_shortest_path_visual',
     { '最短路径': shortestPath.join('→'), '长度': shortestPath.length - 1 },
+    { foundPathVertices: shortestPath, foundPathEdges: pathToEdges(shortestPath) }
+  );
+
+  // 新增：递推打印最短路径步骤
+  push('递推打印路径',
+    `递推（迭代+递归）方式打印最短路径`,
+    `使用两种方式打印最短路径：\n1. 迭代方式：从终点反向回溯到起点，存入栈中，再正向输出 → ${shortestPath.join(' → ')}\n2. 递归方式：从终点递归到起点，回溯时正向输出 → ${recursivePath.join(' → ')}`,
+    'print_path_iterative',
+    { 
+      '迭代路径': shortestPath.join('→'), 
+      '递归路径': recursivePath.join('→'),
+      'parent数组': parent.slice(1, NUM_VERTICES + 1).join(', ')
+    },
     { foundPathVertices: shortestPath, foundPathEdges: pathToEdges(shortestPath) }
   );
 
@@ -586,6 +720,57 @@ function generateBfsMatrixSteps() {
 }
 
 // ============================================================
+//  ALGORITHM 5 — 邻接矩阵与邻接表相互转换
+// ============================================================
+function generateConvertSteps(direction) {
+  const steps = [];
+  
+  if (direction === 'list-to-matrix') {
+    steps.push(mkStep(
+      'convert', '初始化',
+      '邻接表转邻接矩阵 — 初始化',
+      '清空现有邻接矩阵，准备从邻接表转换。邻接表转邻接矩阵的过程是：遍历每个顶点的邻接表，将对应的矩阵元素设为1。',
+      'list_to_matrix',
+      { '转换方向': '邻接表 → 邻接矩阵', '顶点数': NUM_VERTICES }
+    ));
+
+    list_to_matrix();
+
+    steps.push(mkStep(
+      'convert', '转换完成',
+      '邻接表转邻接矩阵 — 完成',
+      '转换完成！新的邻接矩阵已生成，与原邻接表完全等价。可以切换到"邻接矩阵BFS"算法查看转换后的结果。',
+      'list_to_matrix',
+      { '转换结果': '成功', '边数': EDGES.length },
+      { matrixRow: null, matrixCol: null }
+    ));
+  } else {
+    steps.push(mkStep(
+      'convert', '初始化',
+      '邻接矩阵转邻接表 — 初始化',
+      '先摧毁现有邻接表（释放内存），然后遍历邻接矩阵，将值为1的元素转换为邻接表中的边。',
+      'matrix_to_list',
+      { '转换方向': '邻接矩阵 → 邻接表', '顶点数': NUM_VERTICES }
+    ));
+
+    matrix_to_list();
+
+    steps.push(mkStep(
+      'convert', '转换完成',
+      '邻接矩阵转邻接表 — 完成',
+      '转换完成！新的邻接表已生成，与原邻接矩阵完全等价。可以切换到"全部简单路径"或"邻接表BFS"算法查看转换后的结果。',
+      'matrix_to_list',
+      { '转换结果': '成功', '边数': EDGES.length }
+    ));
+  }
+
+  // Stamp step indices
+  steps.forEach((s, i) => { s.stepIndex = i; s.totalSteps = steps.length; });
+
+  return steps;
+}
+
+// ============================================================
 //  APP STATE & INIT
 // ============================================================
 function initApp() {
@@ -594,6 +779,8 @@ function initApp() {
   APP.allSteps['dfs-len3']   = generateDfsLen3Steps();
   APP.allSteps['bfs-list']   = generateBfsListSteps();
   APP.allSteps['bfs-matrix'] = generateBfsMatrixSteps();
+  APP.allSteps['convert-list-to-matrix'] = generateConvertSteps('list-to-matrix');
+  APP.allSteps['convert-matrix-to-list'] = generateConvertSteps('matrix-to-list');
 
   // Stamp stepIndex / totalSteps
   ['dfs-all','dfs-len3','bfs-list','bfs-matrix'].forEach(algo => {
@@ -604,6 +791,7 @@ function initApp() {
   setupEventListeners();
   setupDataSourceHandlers();
   setupFileIOHandlers();
+  setupConvertHandlers();
   updateHeaderInfo();
   renderStep(currentStep());
   updateHeaderBadge();
@@ -665,6 +853,33 @@ function setupEventListeners() {
   });
 }
 
+// 新增：转换功能事件处理
+function setupConvertHandlers() {
+  document.getElementById('btn-list-to-matrix').addEventListener('click', () => {
+    stopPlayback();
+    APP.currentAlgo = 'convert-list-to-matrix';
+    APP.currentIndex = 0;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    updateHeaderBadge();
+    renderStep(currentStep());
+    updateNavButtons();
+    // 重新生成所有算法的步骤
+    rebuildApp();
+  });
+
+  document.getElementById('btn-matrix-to-list').addEventListener('click', () => {
+    stopPlayback();
+    APP.currentAlgo = 'convert-matrix-to-list';
+    APP.currentIndex = 0;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    updateHeaderBadge();
+    renderStep(currentStep());
+    updateNavButtons();
+    // 重新生成所有算法的步骤
+    rebuildApp();
+  });
+}
+
 function startPlayback() {
   const btn = document.getElementById('btn-play');
   btn.textContent = '⏸ 暂停';
@@ -700,15 +915,19 @@ function updateHeaderBadge() {
     'dfs-len3':   '长度为 3 的路径（DFS）',
     'bfs-list':   'BFS 最短路径（邻接表）',
     'bfs-matrix': 'BFS 最短路径（邻接矩阵）',
+    'convert-list-to-matrix': '邻接表转邻接矩阵',
+    'convert-matrix-to-list': '邻接矩阵转邻接表',
   };
   const briefs = {
     'dfs-all':    '邻接表 DFS 回溯，limit=0，枚举所有简单路径',
     'dfs-len3':   '邻接表 DFS + 深度剪枝，limit=3，仅输出长度恰好为 3 的路径',
     'bfs-list':   '邻接表 BFS，O(V+E)，首次到达终点即为最短路径',
     'bfs-matrix': '邻接矩阵 BFS，O(V²)，每次出队扫描整行',
+    'convert-list-to-matrix': '将邻接表转换为等价的邻接矩阵',
+    'convert-matrix-to-list': '将邻接矩阵转换为等价的邻接表',
   };
-  document.getElementById('algo-badge').textContent = names[APP.currentAlgo];
-  document.getElementById('algo-brief').textContent = briefs[APP.currentAlgo];
+  document.getElementById('algo-badge').textContent = names[APP.currentAlgo] || '转换功能';
+  document.getElementById('algo-brief').textContent = briefs[APP.currentAlgo] || '存储结构相互转换';
 }
 
 // ============================================================
@@ -861,7 +1080,7 @@ function renderGraph(step) {
 //  RENDER: ADJACENCY STRUCTURE (list or matrix)
 // ============================================================
 function renderAdjStructure(step) {
-  const isMatrix = (step.algorithm === 'bfs-matrix');
+  const isMatrix = (step.algorithm === 'bfs-matrix' || step.algorithm === 'convert-list-to-matrix');
   const titleEl  = document.getElementById('adj-panel-title');
   const contentEl = document.getElementById('adj-structure-content');
 
@@ -869,7 +1088,7 @@ function renderAdjStructure(step) {
     titleEl.textContent = '邻接矩阵（adj_matrix，1-indexed）';
     contentEl.innerHTML = buildAdjMatrixHTML(step);
   } else {
-    titleEl.textContent = '邻接表（adj_list，head-insert 头插）';
+    titleEl.textContent = '邻接表（adj_list，尾插法）';
     contentEl.innerHTML = buildAdjListHTML(step);
   }
 }
@@ -960,6 +1179,13 @@ function renderFoundPaths(step) {
   const contentEl = document.getElementById('found-paths-content');
 
   const isDfs = step.algorithm === 'dfs-all' || step.algorithm === 'dfs-len3';
+  const isConvert = step.algorithm.startsWith('convert');
+
+  if (isConvert) {
+    titleEl.textContent = '转换结果';
+    contentEl.innerHTML = `<p class="empty-notice">转换完成后，切换到其他算法查看结果。</p>`;
+    return;
+  }
 
   // For BFS, show shortest path result if available
   const fpHl = step.highlight.foundPathVertices || [];
@@ -1015,11 +1241,37 @@ function renderAlgoState(step) {
   const st = step.algoState;
   const hl = step.highlight;
 
-  if (step.algorithm === 'dfs-all' || step.algorithm === 'dfs-len3') {
+  if (step.algorithm.startsWith('convert')) {
+    renderConvertState(el, step);
+  } else if (step.algorithm === 'dfs-all' || step.algorithm === 'dfs-len3') {
     renderDfsState(el, st, hl, step.algorithm);
   } else {
     renderBfsState(el, st, hl, step.algorithm);
   }
+}
+
+function renderConvertState(el, step) {
+  el.innerHTML = `
+    <div class="state-vars-row">
+      <div class="state-var">
+        <span class="state-label">转换方向</span>
+        <span class="state-value active">${step.algorithm === 'convert-list-to-matrix' ? '邻接表→矩阵' : '矩阵→邻接表'}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">顶点数</span>
+        <span class="state-value active">${NUM_VERTICES}</span>
+      </div>
+      <div class="state-var">
+        <span class="state-label">边数</span>
+        <span class="state-value active">${EDGES.length}</span>
+      </div>
+    </div>
+    <div class="complexity-note">
+      ⏱ 转换时间复杂度：O(V+E)，与图的规模成正比
+    </div>
+    <p style="margin-top:10px;font-size:0.9rem;color:#666;">
+      转换完成后，所有算法将使用新的存储结构运行。
+    </p>`;
 }
 
 function renderDfsState(el, st, hl, algo) {
@@ -1201,7 +1453,7 @@ function buildFromEdges(numVerts, edgeList, srcV, dstV) {
   ADJ_LIST = Array.from({length: numVerts + 1}, () => []);
   for (const {from, to} of edgeList) {
     if (from >= 1 && from <= numVerts && to >= 1 && to <= numVerts) {
-      ADJ_LIST[from].push(to);
+      ADJ_LIST[from].push(to); // 尾插法，与C代码修正后一致
     }
   }
 
@@ -1221,8 +1473,10 @@ function rebuildApp() {
   APP.allSteps['dfs-len3']   = generateDfsLen3Steps();
   APP.allSteps['bfs-list']   = generateBfsListSteps();
   APP.allSteps['bfs-matrix'] = generateBfsMatrixSteps();
+  APP.allSteps['convert-list-to-matrix'] = generateConvertSteps('list-to-matrix');
+  APP.allSteps['convert-matrix-to-list'] = generateConvertSteps('matrix-to-list');
 
-  ['dfs-all','dfs-len3','bfs-list','bfs-matrix'].forEach(algo => {
+  ['dfs-all','dfs-len3','bfs-list','bfs-matrix','convert-list-to-matrix','convert-matrix-to-list'].forEach(algo => {
     const arr = APP.allSteps[algo];
     arr.forEach((s, i) => { s.stepIndex = i; s.totalSteps = arr.length; });
   });
@@ -1404,21 +1658,20 @@ function findAllPaths(src, dst) {
 function bfsShortestPath(src, dst) {
   const dist = new Array(NUM_VERTICES + 1).fill(-1);
   const parent = new Array(NUM_VERTICES + 1).fill(-1);
-  const queue = [src];
+  const queue = new Queue();
+  queue.init();
+  queue.enqueue(src);
   dist[src] = 0;
-  while (queue.length) {
-    const cur = queue.shift();
+  while (!queue.empty()) {
+    const cur = queue.dequeue();
     if (cur === dst) {
-      const path = [];
-      let v = dst;
-      while (v !== -1) { path.unshift(v); v = parent[v]; }
-      return path;
+      return print_path_iterative(parent, dst);
     }
     for (const nb of (ADJ_LIST[cur] || [])) {
       if (dist[nb] === -1) {
         dist[nb] = dist[cur] + 1;
         parent[nb] = cur;
-        queue.push(nb);
+        queue.enqueue(nb);
       }
     }
   }

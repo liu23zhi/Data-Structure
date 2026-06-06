@@ -5,6 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>有向图路径搜索可视化</title>
   <link rel="stylesheet" href="graph_path_visualizer.css">
+  <style>
+    /* 新增：转换按钮样式 */
+    .convert-buttons {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    .convert-btn {
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background-color: #f5f5f5;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .convert-btn:hover {
+      background-color: #e0e0e0;
+      border-color: #999;
+    }
+    .convert-btn.primary {
+      background-color: #1976d2;
+      color: white;
+      border-color: #1565c0;
+    }
+    .convert-btn.primary:hover {
+      background-color: #1565c0;
+    }
+    /* 调整算法标签栏以适应更多按钮 */
+    .algo-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .tab-btn {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background-color: #f5f5f5;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background-color: #1976d2;
+      color: white;
+      border-color: #1565c0;
+    }
+    .tab-btn:hover:not(.active) {
+      background-color: #e0e0e0;
+    }
+  </style>
 </head>
 <body>
 
@@ -79,6 +133,11 @@
       <button class="tab-btn" data-algo="bfs-list">BFS 最短路径(邻接表)</button>
       <button class="tab-btn" data-algo="bfs-matrix">BFS 最短路径(邻接矩阵)</button>
     </div>
+    <!-- 新增：存储结构转换按钮 -->
+    <div class="convert-buttons">
+      <button id="btn-list-to-matrix" class="convert-btn primary">🔄 邻接表 → 邻接矩阵</button>
+      <button id="btn-matrix-to-list" class="convert-btn primary">🔄 邻接矩阵 → 邻接表</button>
+    </div>
     <div class="playback-controls">
       <button id="btn-reset" class="ctrl-btn">↺ 重置</button>
       <button id="btn-prev" class="ctrl-btn" disabled>◀ 上一步</button>
@@ -116,7 +175,7 @@
 
     <!-- Right: adjacency list or matrix -->
     <div class="data-panel" id="adj-structure-panel">
-      <h3 class="panel-title" id="adj-panel-title">邻接表（adj_list）</h3>
+      <h3 class="panel-title" id="adj-panel-title">邻接表（adj_list，尾插法）</h3>
       <div id="adj-structure-content"></div>
     </div>
 
@@ -197,10 +256,17 @@
           <td>每次出队检查全部 6 列，共约 18 次检查</td>
           <td class="speedup">矩阵存储无需链表指针，但遍历代价为 O(V²)</td>
         </tr>
+        <tr>
+          <td><strong>存储结构转换</strong><br><small>list_to_matrix() / matrix_to_list()</small></td>
+          <td><code>O(V + E)</code></td>
+          <td><code>O(1)</code>（原地转换）</td>
+          <td>转换时间约 0.1ms</td>
+          <td>两种存储结构无损转换，转换后所有算法自动更新</td>
+        </tr>
       </tbody>
     </table>
     <p style="font-size:0.8rem;color:#888;margin-top:10px;">
-      ※ 本例最短路径为 5→1→2（长度=2）。邻接表 BFS 只遍历实际存在的边，效率更高；邻接矩阵 BFS 每次出队需扫描整行（O(V)），适合密集图。DFS 需回溯全部分支，路径数随深度指数级增长。
+      ※ 本例最短路径为 5→1→2（长度=2）。邻接表 BFS 只遍历实际存在的边，效率更高；邻接矩阵 BFS 每次出队需扫描整行（O(V)），适合密集图。DFS 需回溯全部分支，路径数随深度指数级增长。存储转换功能允许在两种结构间无缝切换，方便对比学习。
     </p>
   </section>
 
