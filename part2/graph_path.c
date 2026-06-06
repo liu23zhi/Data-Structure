@@ -53,7 +53,7 @@ typedef struct TestCase {
     int src;
     int dst;
     const char *desc;
-}TestCase;
+} TestCase;
 
 static void set_console_utf8(void)
 {
@@ -91,30 +91,30 @@ static void print_adj_matrix(void)
     fprintf(POUT, "\n  邻接矩阵（行=出发顶点, 列=到达顶点）:\n\n");
     fprintf(POUT, "      ");
     for (int j = 1; j <= num_vertices; j++) fprintf(POUT, "  %d", j);
-    fprintf(POUT, "\n    ┌");
-    for (int j = 1; j <= num_vertices; j++) fprintf(POUT, "───");
-    fprintf(POUT, "─┐\n");
+    fprintf(POUT, "\n    +");
+    for (int j = 1; j <= num_vertices; j++) fprintf(POUT, "---");
+    fprintf(POUT, "-+\n");
     for (int i = 1; i <= num_vertices; i++) {
-        fprintf(POUT, "  %d │", i);
+        fprintf(POUT, "  %d |", i);
         for (int j = 1; j <= num_vertices; j++) {
             fprintf(POUT, "  %d", adj_matrix[i][j]);
         }
-        fprintf(POUT, "  │\n");
+        fprintf(POUT, "  |\n");
     }
-    fprintf(POUT, "    └");
-    for (int j = 1; j <= num_vertices; j++) fprintf(POUT, "───");
-    fprintf(POUT, "─┘\n");
+    fprintf(POUT, "    +");
+    for (int j = 1; j <= num_vertices; j++) fprintf(POUT, "---");
+    fprintf(POUT, "-+\n");
 }
 
 static void print_adj_list(void)
 {
     fprintf(POUT, "\n  邻接表:\n");
     for (int i = 1; i <= num_vertices; i++) {
-        fprintf(POUT, "    [%d] →", i);
+        fprintf(POUT, "    [%d] ->", i);
         ArcNode *p = adj_list[i].first;
         if (!p) { fprintf(POUT, " NULL"); }
         while (p) {
-            fprintf(POUT, " [%d] →", p->adjvex);
+            fprintf(POUT, " [%d] ->", p->adjvex);
             p = p->next;
         }
         fprintf(POUT, " NULL\n");
@@ -124,29 +124,14 @@ static void print_adj_list(void)
 
 static void print_graph_info(void)
 {
-    fprintf(POUT, "\n┌──────────────────────────────────────────────────────────────────────┐\n");
-    fprintf(POUT, "│                      有向图 G 结构描述                              │\n");
-    fprintf(POUT, "├──────────────────────────────────────────────────────────────────────┤\n");
-    fprintf(POUT, "│  顶点集: {1, 2, 3, 4, 5, 6}                                        │\n");
-    fprintf(POUT, "│  边   集: 5→1, 5→3, 1→2, 1→4, 3→2, 3→4, 4→2, 4→6, 6→2           │\n");
-    fprintf(POUT, "│                                                                      │\n");
-    fprintf(POUT, "│  图示（有向）:                                                       │\n");
-    fprintf(POUT, "│                                                                      │\n");
-    fprintf(POUT, "│        5                                                             │\n");
-    fprintf(POUT, "│       / \\                                                           │\n");
-    fprintf(POUT, "│      ↓   ↓                                                          │\n");
-    fprintf(POUT, "│      1   3                                                           │\n");
-    fprintf(POUT, "│     /|   |\\                                                         │\n");
-    fprintf(POUT, "│    ↓ ↓   ↓ ↓                                                       │\n");
-    fprintf(POUT, "│    2  4  2  4                                                        │\n");
-    fprintf(POUT, "│       |     |                                                        │\n");
-    fprintf(POUT, "│       ↓     ↓                                                       │\n");
-    fprintf(POUT, "│      2,6   2,6                                                       │\n");
-    fprintf(POUT, "│        ↓                                                             │\n");
-    fprintf(POUT, "│        2                                                             │\n");
-    fprintf(POUT, "│                                                                      │\n");
-    fprintf(POUT, "│  合并后路径示意:  5→{1,3}→{2,4}→{2,6}→2                          │\n");
-    fprintf(POUT, "└──────────────────────────────────────────────────────────────────────┘\n");
+    fprintf(POUT, "\n+---------------------------------------------------------------+\n");
+    fprintf(POUT, "|                      有向图 G 结构描述                        |\n");
+    fprintf(POUT, "|---------------------------------------------------------------|\n");
+    fprintf(POUT, "|  顶点集: {1, 2, 3, 4, 5, 6}                                  |\n");
+    fprintf(POUT, "|  边   集: 5→1,5→3,1→2,1→4,3→2,3→4,4→2,4→6,6→2              |\n");
+    fprintf(POUT, "|                                                               |\n");
+    fprintf(POUT, "|  合并路径示意: 5->{1,3}->{2,4}->{2,6}->2                     |\n");
+    fprintf(POUT, "+---------------------------------------------------------------+\n");
 }
 
 /* ─────────────────────────────────────────────
@@ -163,7 +148,7 @@ static void print_path(int depth)
     fprintf(POUT, "    路径%2d: ", path_count);
     for (int i = 0; i <= depth; i++) {
         fprintf(POUT, "%d", path[i]);
-        if (i < depth) fprintf(POUT, " → ");
+        if (i < depth) fprintf(POUT, " -> ");
     }
     fprintf(POUT, "  (长度=%d)\n", depth);
 }
@@ -279,7 +264,7 @@ static void print_path_iterative(int parent[], int dst)
         cur = parent[cur];
     }
 
-    fprintf(POUT, "\n  ● 迭代方式打印 path 数组（parent[]）:\n\n");
+    fprintf(POUT, "\n  迭代方式打印 path 数组（parent[]）:\n\n");
     fprintf(POUT, "    parent 数组内容：\n");
     fprintf(POUT, "    顶点: ");
     for (int i = 1; i <= num_vertices; i++) fprintf(POUT, "  %d", i);
@@ -295,9 +280,9 @@ static void print_path_iterative(int parent[], int dst)
     int cur2 = dst;
     while (cur2 != -1) {
         if (parent[cur2] == -1)
-            fprintf(POUT, "      第%d步: parent[%d]=-1 → 到达起点 %d, 停止\n", step, cur2, cur2);
+            fprintf(POUT, "      第%d步: parent[%d]=-1 -> 到达起点 %d, 停止\n", step, cur2, cur2);
         else
-            fprintf(POUT, "      第%d步: parent[%d]=%d → 继续回溯\n", step, cur2, parent[cur2]);
+            fprintf(POUT, "      第%d步: parent[%d]=%d -> 继续回溯\n", step, cur2, parent[cur2]);
         cur2 = parent[cur2];
         step++;
     }
@@ -305,7 +290,7 @@ static void print_path_iterative(int parent[], int dst)
     fprintf(POUT, "\n    最短路径（正向）: ");
     for (int i = top - 1; i >= 0; i--) {
         fprintf(POUT, "%d", stack[i]);
-        if (i > 0) fprintf(POUT, " → ");
+        if (i > 0) fprintf(POUT, " -> ");
     }
     fprintf(POUT, "\n");
 }
@@ -319,19 +304,11 @@ static void print_shortest_path_visual(int parent[], int dst, int dist)
         cur = parent[cur];
     }
 
-    fprintf(POUT, "\n  ✓ 最短路径（长度=%d）：\n    ", dist);
+    fprintf(POUT, "\n  最短路径（长度=%d）：\n    ", dist);
     for (int i = top - 1; i >= 0; i--) {
         fprintf(POUT, "%d", stack[i]);
-        if (i > 0) fprintf(POUT, " → ");
+        if (i > 0) fprintf(POUT, " -> ");
     }
-    fprintf(POUT, "\n\n");
-
-    fprintf(POUT, "  路径可视化:\n\n    ┌───┐");
-    for (int i = top - 2; i >= 0; i--) fprintf(POUT, "   ┌───┐");
-    fprintf(POUT, "\n    │ %d │", stack[top - 1]);
-    for (int i = top - 2; i >= 0; i--) fprintf(POUT, " → │ %d │", stack[i]);
-    fprintf(POUT, "\n    └───┘");
-    for (int i = top - 2; i >= 0; i--) fprintf(POUT, "   └───┘");
     fprintf(POUT, "\n\n");
 }
 
@@ -380,7 +357,7 @@ static void run_graph_search(int src, int dst)
 {
     fprintf(POUT, "\n");
     fprintf(POUT, "*****************************************************************\n");
-    fprintf(POUT, "*         设计实验：有向图路径搜索  顶点 %d → 顶点 %d           *\n", src, dst);
+    fprintf(POUT, "*         设计实验：有向图路径搜索  顶点 %d -> 顶点 %d           *\n", src, dst);
     fprintf(POUT, "*****************************************************************\n");
 
     print_graph_info();
@@ -390,7 +367,7 @@ static void run_graph_search(int src, int dst)
 
     /* 任务1：所有简单路径（邻接表 DFS） */
     fprintf(POUT, "=================================================================\n");
-    fprintf(POUT, "【任务1】顶点 %d → 顶点 %d 的所有简单路径（DFS 邻接表）\n", src, dst);
+    fprintf(POUT, "【任务1】顶点 %d -> 顶点 %d 的所有简单路径（DFS 邻接表）\n", src, dst);
     fprintf(POUT, "=================================================================\n\n");
 
     memset(visited, 0, sizeof(visited));
@@ -403,7 +380,7 @@ static void run_graph_search(int src, int dst)
 
     /* 任务2：长度为3的简单路径 */
     fprintf(POUT, "=================================================================\n");
-    fprintf(POUT, "【任务2】顶点 %d → 顶点 %d 的所有长度为 3 的简单路径\n", src, dst);
+    fprintf(POUT, "【任务2】顶点 %d -> 顶点 %d 的所有长度为 3 的简单路径\n", src, dst);
     fprintf(POUT, "=================================================================\n\n");
 
     memset(visited, 0, sizeof(visited));
@@ -416,7 +393,7 @@ static void run_graph_search(int src, int dst)
 
     /* 任务3-B：BFS 最短路径（邻接表） */
     fprintf(POUT, "=================================================================\n");
-    fprintf(POUT, "【任务3-B】BFS（队列）求顶点 %d → 顶点 %d 的最短路径（邻接表）\n", src, dst);
+    fprintf(POUT, "【任务3-B】BFS（队列）求顶点 %d -> 顶点 %d 的最短路径（邻接表）\n", src, dst);
     fprintf(POUT, "=================================================================\n\n");
 
     int parent_list[MAXV];
@@ -424,7 +401,7 @@ static void run_graph_search(int src, int dst)
     int dist_list = bfs_shortest(src, dst, parent_list, 0);
 
     if (dist_list < 0) {
-        fprintf(POUT, "  ✗ 不可达\n\n");
+        fprintf(POUT, "  不可达\n\n");
     } else {
         print_shortest_path_visual(parent_list, dst, dist_list);
     }
@@ -448,7 +425,7 @@ static void run_graph_search(int src, int dst)
     fprintf(POUT, "\n  邻接矩阵存储结构:\n");
     print_adj_matrix();
 
-    fprintf(POUT, "\n  ● 邻接矩阵 DFS：顶点 %d → 顶点 %d 的所有简单路径\n\n", src, dst);
+    fprintf(POUT, "\n  邻接矩阵 DFS：顶点 %d -> 顶点 %d 的所有简单路径\n\n", src, dst);
     memset(visited, 0, sizeof(visited));
     path[0]    = src;
     path_count = 0;
@@ -457,13 +434,13 @@ static void run_graph_search(int src, int dst)
     visited[src] = 0;
     fprintf(POUT, "\n  共找到 %d 条简单路径\n\n", path_count);
 
-    fprintf(POUT, "\n  ● 邻接矩阵 BFS：顶点 %d → 顶点 %d 的最短路径\n\n", src, dst);
+    fprintf(POUT, "\n  邻接矩阵 BFS：顶点 %d -> 顶点 %d 的最短路径\n\n", src, dst);
     int parent_mat[MAXV];
     fprintf(POUT, "  BFS 过程:\n");
     int dist_mat = bfs_shortest(src, dst, parent_mat, 1);
 
     if (dist_mat < 0) {
-        fprintf(POUT, "  ✗ 不可达\n\n");
+        fprintf(POUT, "  不可达\n\n");
     } else {
         print_shortest_path_visual(parent_mat, dst, dist_mat);
     }
@@ -479,15 +456,15 @@ static void run_graph_search(int src, int dst)
 static void show_menu(void)
 {
     printf("\n");
-    printf("╔══════════════════════════════════════════════╗\n");
-    printf("║         设计实验：有向图路径搜索               ║\n");
-    printf("╠══════════════════════════════════════════════╣\n");
-    printf("║  [1] 屏幕交互模式（命令行输入输出）            ║\n");
-    printf("║  [2] 文件交互模式（文件输入输出）              ║\n");
-    printf("║  [3] 运行测试用例                             ║\n");
-    printf("║  [0] 退出程序                                 ║\n");
-    printf("╠══════════════════════════════════════════════╣\n");
-    printf("║  请输入选项: ");
+    printf("+==============================================================+\n");
+    printf("|         设计实验：有向图路径搜索                             |\n");
+    printf("|==============================================================|\n");
+    printf("|  [1] 屏幕交互模式                                             |\n");
+    printf("|  [2] 文件交互模式                                             |\n");
+    printf("|  [3] 运行测试用例                                             |\n");
+    printf("|  [0] 退出程序                                                 |\n");
+    printf("+==============================================================+\n");
+    printf("  请输入选项: ");
 }
 
 /* 模式1：屏幕交互 */
@@ -495,8 +472,7 @@ static void screen_mode(void)
 {
     g_out = stdout;
     printf("\n【屏幕交互模式】\n");
-    printf("  图含顶点 1~%d，边集：5→1, 5→3, 1→2, 1→4, 3→2, 3→4, 4→2, 4→6, 6→2\n",
-           num_vertices);
+    printf("  图含顶点 1~%d，边集：5→1,5→3,1→2,1→4,3→2,3→4,4→2,4→6,6→2\n", num_vertices);
     int src, dst;
     printf("  请输入起点顶点（1~%d）: ", num_vertices);
     if (scanf("%d", &src) != 1 || src < 1 || src > num_vertices) {
@@ -516,31 +492,26 @@ static void file_mode(void)
 {
     FILE *fin = fopen(INPUT_FILE, "r");
     if (!fin) {
-        printf("  ✗ 无法打开输入文件 %s\n", INPUT_FILE);
-        printf("    请创建文件，格式：首行为查询对数，之后每行 src dst。\n");
-        printf("    示例：\n");
-        printf("      2\n");
-        printf("      5 2\n");
-        printf("      1 6\n");
+        printf("  无法打开输入文件 %s\n", INPUT_FILE);
         return;
     }
 
     int n;
     if (fscanf(fin, "%d", &n) != 1 || n <= 0) {
-        printf("  ✗ 输入文件格式错误\n");
+        printf("  输入文件格式错误\n");
         fclose(fin);
         return;
     }
 
     FILE *fout = fopen(OUTPUT_FILE, "w");
     if (!fout) {
-        printf("  ✗ 无法创建输出文件 %s\n", OUTPUT_FILE);
+        printf("  无法创建输出文件 %s\n", OUTPUT_FILE);
         fclose(fin);
         return;
     }
 
-    printf("  ✓ 从文件 %s 读取 %d 组查询\n", INPUT_FILE, n);
-    printf("  ✓ 结果将写入文件 %s\n", OUTPUT_FILE);
+    printf("  从文件 %s 读取 %d 组查询\n", INPUT_FILE, n);
+    printf("  结果将写入文件 %s\n", OUTPUT_FILE);
 
     g_out = fout;
     fprintf(g_out, "========================================\n");
@@ -551,7 +522,7 @@ static void file_mode(void)
     for (int i = 0; i < n; i++) {
         int src, dst;
         if (fscanf(fin, "%d %d", &src, &dst) != 2) {
-            fprintf(g_out, "  ✗ 读取第 %d 组查询失败\n", i + 1);
+            fprintf(g_out, "  读取第 %d 组查询失败\n", i + 1);
             break;
         }
         fprintf(g_out, "\n[查询 %d/%d] 起点=%d 终点=%d\n", i + 1, n, src, dst);
@@ -565,34 +536,28 @@ static void file_mode(void)
     fclose(fin);
     fclose(fout);
     g_out = stdout;
-    printf("  ✓ 完成，结果已保存至 %s\n", OUTPUT_FILE);
+    printf("  完成，结果已保存至 %s\n", OUTPUT_FILE);
 }
 
-/* 模式3：测试用例
-   等价类划分 + 边界值分析：
-     TC1  正常案例 — src=5, dst=2（多条路径，题目默认）
-     TC2  正常案例 — src=5, dst=6（存在路径，路径较少）
-     TC3  等价类   — src=2, dst=5（不可达，顶点2无出边）
-     TC4  边界值   — src=1, dst=1（起点=终点，应为0条路径/长度0）
-*/
+/* 模式3：测试用例 */
 static void test_mode(void)
 {
     TestCase cases[] = {
-        {5, 2, "TC1 正常案例 — src=5, dst=2（多条路径）"},
-        {5, 6, "TC2 正常案例 — src=5, dst=6（路径经过4→6）"},
-        {2, 5, "TC3 等价类   — src=2, dst=5（不可达）"},
-        {1, 1, "TC4 边界值   — src=1, dst=1（起点等于终点）"},
+        {5, 2, "TC1 正常案例 - src=5, dst=2（多条路径）"},
+        {5, 6, "TC2 正常案例 - src=5, dst=6（路径经过4→6）"},
+        {2, 5, "TC3 等价类   - src=2, dst=5（不可达）"},
+        {1, 1, "TC4 边界值   - src=1, dst=1（起点等于终点）"},
     };
     int num_cases = (int)(sizeof(cases) / sizeof(cases[0]));
 
     FILE *fout = fopen(OUTPUT_FILE, "w");
     if (!fout) {
-        printf("  ✗ 无法创建输出文件 %s，结果仅输出至屏幕\n", OUTPUT_FILE);
+        printf("  无法创建输出文件 %s，结果仅输出至屏幕\n", OUTPUT_FILE);
     }
 
     printf("\n【测试用例模式】共 %d 个测试案例\n", num_cases);
     if (fout) {
-        printf("  ✓ 测试结果同步写入 %s\n", OUTPUT_FILE);
+        printf("  测试结果同步写入 %s\n", OUTPUT_FILE);
         fprintf(fout, "========================================\n");
         fprintf(fout, "有向图路径搜索 — 测试用例输出\n");
         fprintf(fout, "测试案例数：%d\n", num_cases);
@@ -600,17 +565,17 @@ static void test_mode(void)
     }
 
     for (int i = 0; i < num_cases; i++) {
-        printf("\n══════════════════════════════════════════\n");
+        printf("\n========================================================\n");
         printf("  %s\n", cases[i].desc);
-        printf("══════════════════════════════════════════\n");
+        printf("========================================================\n");
 
         g_out = stdout;
         run_graph_search(cases[i].src, cases[i].dst);
 
         if (fout) {
-            fprintf(fout, "\n══════════════════════════════════════════\n");
+            fprintf(fout, "\n========================================================\n");
             fprintf(fout, "  %s\n", cases[i].desc);
-            fprintf(fout, "══════════════════════════════════════════\n");
+            fprintf(fout, "========================================================\n");
             g_out = fout;
             run_graph_search(cases[i].src, cases[i].dst);
         }
@@ -621,8 +586,13 @@ static void test_mode(void)
         fprintf(fout, "测试完毕\n");
         fprintf(fout, "========================================\n");
         fclose(fout);
-        g_out = stdout;
-        printf("\n  ✓ 所有测试案例完成，结果已保存至 %s\n", OUTPUT_FILE);
+    }
+
+    // 无论是否成功写入文件，最后都把输出切回屏幕
+    g_out = stdout;
+
+    if (fout) {
+        printf("\n  所有测试案例完成，结果已保存至 %s\n", OUTPUT_FILE);
     }
 }
 
@@ -631,7 +601,7 @@ static void test_mode(void)
    ───────────────────────────────────────────── */
 int main(void)
 {
-    set_console_utf8(); // 新增首行
+    set_console_utf8();
     g_out = stdout;
     build_graph();
 
@@ -644,8 +614,7 @@ int main(void)
             while ((c = getchar()) != '\n' && c != EOF);
             continue;
         }
-        printf("  ║\n");
-        printf("  ╚══════════════════════════════════════════════╝\n");
+        printf("\n");
 
         switch (choice) {
             case 1: screen_mode(); break;
