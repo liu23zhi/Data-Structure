@@ -18,6 +18,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+// 新增：Windows编码头
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #define MAXV 7
 #define INF  0x3f3f3f3f
@@ -44,6 +48,20 @@ typedef struct {
 
 VNode adj_list[MAXV];
 int   num_vertices = 6;
+
+typedef struct TestCase {
+    int src;
+    int dst;
+    const char *desc;
+}TestCase;
+
+static void set_console_utf8(void)
+{
+#ifdef _WIN32
+    SetConsoleOutputCP(65001);  // 输出UTF-8
+    SetConsoleCP(65001);        // 输入UTF-8
+#endif
+}
 
 static void add_edge_list(int u, int v)
 {
@@ -559,7 +577,7 @@ static void file_mode(void)
 */
 static void test_mode(void)
 {
-    struct { int src; int dst; const char *desc; } cases[] = {
+    TestCase cases[] = {
         {5, 2, "TC1 正常案例 — src=5, dst=2（多条路径）"},
         {5, 6, "TC2 正常案例 — src=5, dst=6（路径经过4→6）"},
         {2, 5, "TC3 等价类   — src=2, dst=5（不可达）"},
@@ -613,6 +631,7 @@ static void test_mode(void)
    ───────────────────────────────────────────── */
 int main(void)
 {
+    set_console_utf8(); // 新增首行
     g_out = stdout;
     build_graph();
 
